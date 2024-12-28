@@ -1,0 +1,760 @@
+local Players = game:GetService("Players")
+local CoreGui = game:GetService("CoreGui")
+local TweenService = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
+local player = Players.LocalPlayer
+
+-- Notification System
+local function createNotification(message)
+    local notif = Instance.new("Frame")
+    notif.Size = UDim2.new(0, 200, 0, 60)
+    notif.Position = UDim2.new(1, -220, 1, -80)
+    notif.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+    notif.BorderSizePixel = 0
+    
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, 6)
+    corner.Parent = notif
+    
+    local text = Instance.new("TextLabel")
+    text.Size = UDim2.new(1, -40, 1, 0)
+    text.Position = UDim2.new(0, 10, 0, 0)
+    text.BackgroundTransparency = 1
+    text.Text = message
+    text.TextColor3 = Color3.fromRGB(255, 255, 255)
+    text.TextWrapped = true
+    text.Font = Enum.Font.Gotham
+    text.TextSize = 14
+    text.Parent = notif
+    
+    local closeBtn = Instance.new("TextButton")
+    closeBtn.Size = UDim2.new(0, 20, 0, 20)
+    closeBtn.Position = UDim2.new(1, -25, 0, 5)
+    closeBtn.BackgroundTransparency = 1
+    closeBtn.Text = "×"
+    closeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    closeBtn.Font = Enum.Font.GothamBold
+    closeBtn.TextSize = 16
+    closeBtn.Parent = notif
+    
+    closeBtn.MouseButton1Click:Connect(function()
+        notif:Destroy()
+    end)
+    
+    notif.Parent = CoreGui
+    
+    task.delay(5, function()
+        if notif and notif.Parent then
+            notif:Destroy()
+        end
+    end)
+    
+    return notif
+end
+
+-- GUI Creation
+local gui = Instance.new("ScreenGui")
+gui.Parent = CoreGui
+
+-- Main Frame
+local mainFrame = Instance.new("Frame")
+mainFrame.Size = UDim2.new(0, 500, 0, 350)
+mainFrame.Position = UDim2.new(0.5, -250, 0.5, -175)
+mainFrame.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+local corner = Instance.new("UICorner")
+corner.CornerRadius = UDim.new(0, 8)
+corner.Parent = mainFrame
+mainFrame.Parent = gui
+
+-- Title Bar
+local titleBar = Instance.new("Frame")
+titleBar.Size = UDim2.new(1, 0, 0, 30)
+titleBar.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+local titleCorner = Instance.new("UICorner")
+titleCorner.CornerRadius = UDim.new(0, 8)
+titleCorner.Parent = titleBar
+titleBar.Parent = mainFrame
+
+-- Sidebar
+local sideBar = Instance.new("Frame")
+sideBar.Size = UDim2.new(0, 150, 1, -30)
+sideBar.Position = UDim2.new(0, 0, 0, 30)
+sideBar.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+sideBar.Parent = mainFrame
+
+-- Content Area
+local contentFrame = Instance.new("Frame")
+contentFrame.Size = UDim2.new(1, -160, 1, -40)
+contentFrame.Position = UDim2.new(0, 155, 0, 35)
+contentFrame.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+contentFrame.Parent = mainFrame
+
+-- Enhanced Button Creation Function
+local function createSectionButton(text, yPos)
+    local button = Instance.new("TextButton")
+    button.Size = UDim2.new(0.9, 0, 0, 40)
+    button.Position = UDim2.new(0.05, 0, 0, yPos)
+    button.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+    button.Text = text
+    button.TextColor3 = Color3.fromRGB(255, 255, 255)
+    button.Font = Enum.Font.GothamBold
+    button.TextSize = 14
+    button.AutoButtonColor = false
+    
+    local buttonCorner = Instance.new("UICorner")
+    buttonCorner.CornerRadius = UDim.new(0, 6)
+    buttonCorner.Parent = button
+    
+    -- Hover Effect
+    button.MouseEnter:Connect(function()
+        TweenService:Create(button, TweenInfo.new(0.2), {
+            BackgroundColor3 = Color3.fromRGB(55, 55, 55)
+        }):Play()
+        button.MouseCursor = "PointingHand"
+    end)
+    
+    button.MouseLeave:Connect(function()
+        TweenService:Create(button, TweenInfo.new(0.2), {
+            BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+        }):Play()
+    end)
+    
+    button.Parent = sideBar
+    return button
+end
+
+-- Enhanced Toggle Switch Creation
+local function createToggleSwitch(parent, text, yPos)
+    local container = Instance.new("Frame")
+    container.Size = UDim2.new(1, 0, 0, 40)
+    container.Position = UDim2.new(0, 0, 0, yPos)
+    container.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+    
+    local containerCorner = Instance.new("UICorner")
+    containerCorner.CornerRadius = UDim.new(0, 6)
+    containerCorner.Parent = container
+    
+    local label = Instance.new("TextLabel")
+    label.Size = UDim2.new(0.7, 0, 1, 0)
+    label.Position = UDim2.new(0, 15, 0, 0)
+    label.BackgroundTransparency = 1
+    label.Text = text
+    label.TextColor3 = Color3.fromRGB(255, 255, 255)
+    label.Font = Enum.Font.Gotham
+    label.TextSize = 14
+    label.TextXAlignment = Enum.TextXAlignment.Left
+    label.Parent = container
+    
+    local toggleFrame = Instance.new("Frame")
+    toggleFrame.Size = UDim2.new(0, 44, 0, 24)
+    toggleFrame.Position = UDim2.new(0.85, 0, 0.5, -12)
+    toggleFrame.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+    toggleFrame.MouseCursor = "PointingHand"
+    
+    local toggleCorner = Instance.new("UICorner")
+    toggleCorner.CornerRadius = UDim.new(1, 0)
+    toggleCorner.Parent = toggleFrame
+    
+    local switch = Instance.new("Frame")
+    switch.Size = UDim2.new(0, 20, 0, 20)
+    switch.Position = UDim2.new(0, 2, 0.5, -10)
+    switch.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+    
+    local switchCorner = Instance.new("UICorner")
+    switchCorner.CornerRadius = UDim.new(1, 0)
+    switchCorner.Parent = switch
+    
+    switch.Parent = toggleFrame
+    toggleFrame.Parent = container
+    container.Parent = parent
+    
+    -- Toggle State
+    local enabled = false
+    local function updateToggle()
+        local newPos = enabled and UDim2.new(1, -22, 0.5, -10) or UDim2.new(0, 2, 0.5, -10)
+        local newColor = enabled and Color3.fromRGB(0, 255, 127) or Color3.fromRGB(255, 255, 255)
+        
+        TweenService:Create(switch, TweenInfo.new(0.2), {
+            Position = newPos,
+            BackgroundColor3 = newColor
+        }):Play()
+        
+        return enabled
+    end
+    
+    -- Hover Effect
+    toggleFrame.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseMovement then
+            TweenService:Create(toggleFrame, TweenInfo.new(0.2), {
+                BackgroundColor3 = Color3.fromRGB(70, 70, 70)
+            }):Play()
+        end
+    end)
+    
+    toggleFrame.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseMovement then
+            TweenService:Create(toggleFrame, TweenInfo.new(0.2), {
+                BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+            }):Play()
+        end
+    end)
+
+    -- Click Handler
+    local function handleClick()
+        enabled = not enabled
+        local success = updateToggle()
+        return success
+    end
+    
+    toggleFrame.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            handleClick()
+        end
+    end)
+    
+    return container, toggleFrame, switch, handleClick
+end
+
+-- Enhanced Slider Creation
+local function createSlider(parent, text, yPos, minValue, maxValue)
+    local container = Instance.new("Frame")
+    container.Size = UDim2.new(1, 0, 0, 80)
+    container.Position = UDim2.new(0, 0, 0, yPos)
+    container.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+    
+    local containerCorner = Instance.new("UICorner")
+    containerCorner.CornerRadius = UDim.new(0, 6)
+    containerCorner.Parent = container
+    
+    local label = Instance.new("TextLabel")
+    label.Size = UDim2.new(1, -20, 0, 30)
+    label.Position = UDim2.new(0, 15, 0, 0)
+    label.BackgroundTransparency = 1
+    label.Text = text
+    label.TextColor3 = Color3.fromRGB(255, 255, 255)
+    label.Font = Enum.Font.Gotham
+    label.TextSize = 14
+    label.TextXAlignment = Enum.TextXAlignment.Left
+    label.Parent = container
+    
+    local sliderBar = Instance.new("Frame")
+    sliderBar.Size = UDim2.new(0.7, 0, 0, 6)
+    sliderBar.Position = UDim2.new(0.15, 0, 0.6, 0)
+    sliderBar.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+    
+    local sliderCorner = Instance.new("UICorner")
+    sliderCorner.CornerRadius = UDim.new(1, 0)
+    sliderCorner.Parent = sliderBar
+    
+    local sliderButton = Instance.new("Frame")
+    sliderButton.Size = UDim2.new(0, 16, 0, 16)
+    sliderButton.Position = UDim2.new(0, 0, 0.5, -8)
+    sliderButton.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+    sliderButton.MouseCursor = "PointingHand"
+    
+    local buttonCorner = Instance.new("UICorner")
+    buttonCorner.CornerRadius = UDim.new(1, 0)
+    buttonCorner.Parent = sliderButton
+    
+    sliderButton.Parent = sliderBar
+    
+    local valueBox = Instance.new("TextBox")
+    valueBox.Size = UDim2.new(0.15, 0, 0, 25)
+    valueBox.Position = UDim2.new(0.8, 0, 0.45, 0)
+    valueBox.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+    valueBox.Text = tostring(minValue)
+    valueBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+    valueBox.Font = Enum.Font.Gotham
+    valueBox.TextSize = 14
+    
+    local valueCorner = Instance.new("UICorner")
+    valueCorner.CornerRadius = UDim.new(0, 4)
+    valueCorner.Parent = valueBox
+    
+    -- Slider functionality
+    local isDragging = false
+    local currentValue = minValue
+    
+    local function updateValue(value)
+        currentValue = math.clamp(value, minValue, maxValue)
+        valueBox.Text = string.format("%.1f", currentValue)
+        local position = (currentValue - minValue) / (maxValue - minValue)
+        sliderButton.Position = UDim2.new(position, -8, 0.5, -8)
+        return currentValue
+    end
+    
+    sliderButton.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            isDragging = true
+        end
+    end)
+    
+    UserInputService.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            isDragging = false
+        end
+    end)
+    
+    UserInputService.InputChanged:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseMovement and isDragging then
+            local sliderPosition = math.clamp(
+                (input.Position.X - sliderBar.AbsolutePosition.X) / sliderBar.AbsoluteSize.X,
+                0, 1
+            )
+            local value = minValue + (sliderPosition * (maxValue - minValue))
+            updateValue(value)
+        end
+    end)
+    
+    valueBox.FocusLost:Connect(function(enterPressed)
+        if enterPressed then
+            local inputValue = tonumber(valueBox.Text)
+            if inputValue then
+                updateValue(inputValue)
+            else
+                valueBox.Text = string.format("%.1f", currentValue)
+            end
+        end
+    end)
+    
+    sliderBar.Parent = container
+    valueBox.Parent = container
+    container.Parent = parent
+    
+    return container, sliderButton, valueBox, updateValue
+end
+
+-- Enhanced Player Selection
+local function createPlayerSelection(parent, yPos)
+    local container = Instance.new("Frame")
+    container.Size = UDim2.new(1, 0, 0, 60)
+    container.Position = UDim2.new(0, 0, 0, yPos)
+    container.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+    
+    local containerCorner = Instance.new("UICorner")
+    containerCorner.CornerRadius = UDim.new(0, 6)
+    containerCorner.Parent = container
+
+    local label = Instance.new("TextLabel")
+    label.Size = UDim2.new(1, -20, 0, 30)
+    label.Position = UDim2.new(0, 15, 0, 0)
+    label.BackgroundTransparency = 1
+    label.Text = "Player Selection"
+    label.TextColor3 = Color3.fromRGB(255, 255, 255)
+    label.Font = Enum.Font.Gotham
+    label.TextSize = 14
+    label.TextXAlignment = Enum.TextXAlignment.Left
+    label.Parent = container
+    
+    local input = Instance.new("TextBox")
+    input.Size = UDim2.new(0.9, 0, 0, 25)
+    input.Position = UDim2.new(0.05, 0, 0.5, 0)
+    input.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+    input.Text = ""
+    input.PlaceholderText = "Enter player name"
+    input.TextColor3 = Color3.fromRGB(255, 255, 255)
+    input.Font = Enum.Font.Gotham
+    input.TextSize = 14
+    
+    local inputCorner = Instance.new("UICorner")
+    inputCorner.CornerRadius = UDim.new(0, 4)
+    inputCorner.Parent = input
+    
+    -- Fuzzy search function
+    local function fuzzyMatch(str, pattern)
+        pattern = pattern:lower()
+        str = str:lower()
+        local currentPos = 1
+        for c in pattern:gmatch(".") do
+            local found = str:find(c, currentPos, true)
+            if not found then return false end
+            currentPos = found + 1
+        end
+        return true
+    end
+    
+    -- Player search functionality
+    local function findPlayers(searchText)
+        local matches = {}
+        for _, p in ipairs(Players:GetPlayers()) do
+            if p ~= player then
+                if fuzzyMatch(p.Name, searchText) or (p.DisplayName and fuzzyMatch(p.DisplayName, searchText)) then
+                    table.insert(matches, p)
+                end
+            end
+        end
+        return matches
+    end
+    
+    -- Create dropdown suggestions
+    local suggestionsFrame = Instance.new("Frame")
+    suggestionsFrame.Size = UDim2.new(0.9, 0, 0, 0)
+    suggestionsFrame.Position = UDim2.new(0.05, 0, 1, 5)
+    suggestionsFrame.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+    suggestionsFrame.Visible = false
+    suggestionsFrame.ZIndex = 10
+    
+    local suggestionsCorner = Instance.new("UICorner")
+    suggestionsCorner.CornerRadius = UDim.new(0, 4)
+    suggestionsCorner.Parent = suggestionsFrame
+    
+    local suggestionsList = Instance.new("ScrollingFrame")
+    suggestionsList.Size = UDim2.new(1, 0, 1, 0)
+    suggestionsList.BackgroundTransparency = 1
+    suggestionsList.ScrollBarThickness = 4
+    suggestionsList.ZIndex = 10
+    suggestionsList.Parent = suggestionsFrame
+    
+    local suggestionsLayout = Instance.new("UIListLayout")
+    suggestionsLayout.SortOrder = Enum.SortOrder.LayoutOrder
+    suggestionsLayout.Padding = UDim.new(0, 2)
+    suggestionsLayout.Parent = suggestionsList
+    
+    local function createSuggestionButton(playerName, displayName)
+        local button = Instance.new("TextButton")
+        button.Size = UDim2.new(1, 0, 0, 25)
+        button.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+        button.Text = string.format("%s (%s)", displayName, playerName)
+        button.TextColor3 = Color3.fromRGB(255, 255, 255)
+        button.Font = Enum.Font.Gotham
+        button.TextSize = 12
+        button.ZIndex = 10
+        button.AutoButtonColor = false
+        
+        local buttonCorner = Instance.new("UICorner")
+        buttonCorner.CornerRadius = UDim.new(0, 4)
+        buttonCorner.Parent = button
+        
+        -- Hover effect
+        button.MouseEnter:Connect(function()
+            TweenService:Create(button, TweenInfo.new(0.2), {
+                BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+            }):Play()
+        end)
+        
+        button.MouseLeave:Connect(function()
+            TweenService:Create(button, TweenInfo.new(0.2), {
+                BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+            }):Play()
+        end)
+        
+        return button
+    end
+    
+    local function updateSuggestions(searchText)
+        -- Clear previous suggestions
+        for _, child in ipairs(suggestionsList:GetChildren()) do
+            if child:IsA("TextButton") then
+                child:Destroy()
+            end
+        end
+        
+        if searchText == "" then
+            suggestionsFrame.Visible = false
+            return
+        end
+        
+        local matches = findPlayers(searchText)
+        if #matches > 0 then
+            for _, p in ipairs(matches) do
+                local button = createSuggestionButton(p.Name, p.DisplayName)
+                button.Parent = suggestionsList
+                
+                button.MouseButton1Click:Connect(function()
+                    input.Text = p.Name
+                    suggestionsFrame.Visible = false
+                end)
+            end
+            
+            suggestionsFrame.Size = UDim2.new(0.9, 0, 0, math.min(#matches * 27, 100))
+            suggestionsList.CanvasSize = UDim2.new(0, 0, 0, #matches * 27)
+            suggestionsFrame.Visible = true
+        else
+            suggestionsFrame.Visible = false
+        end
+    end
+    
+    input.Changed:Connect(function(prop)
+        if prop == "Text" then
+            updateSuggestions(input.Text)
+        end
+    end)
+    
+    input.Parent = container
+    suggestionsFrame.Parent = container
+    container.Parent = parent
+    
+    return container, input
+end
+
+-- Create Content Sections
+local personalHitboxSection = Instance.new("Frame")
+personalHitboxSection.Size = UDim2.new(1, 0, 1, 0)
+personalHitboxSection.BackgroundTransparency = 1
+personalHitboxSection.Visible = true
+personalHitboxSection.Parent = contentFrame
+
+local hitboxExpanderSection = Instance.new("Frame")
+hitboxExpanderSection.Size = UDim2.new(1, 0, 1, 0)
+hitboxExpanderSection.BackgroundTransparency = 1
+hitboxExpanderSection.Visible = false
+hitboxExpanderSection.Parent = contentFrame
+
+-- Create Section Buttons
+local personalButton = createSectionButton("Personal Hitbox", 10)
+local expanderButton = createSectionButton("Hitbox Expander", 60)
+
+-- Hitbox Management Functions
+local function updateHitboxVisual(character, size)
+    if not character then return end
+    local root = character:FindFirstChild("HumanoidRootPart")
+    if not root then return end
+    
+    local visual = root:FindFirstChild("HitboxVisual")
+    if not visual then
+        visual = Instance.new("SelectionBox")
+        visual.Name = "HitboxVisual"
+        visual.Color3 = Color3.fromRGB(255, 0, 0)
+        visual.LineThickness = 0.05
+        visual.Adornee = root
+        visual.Parent = root
+    end
+    
+    -- Update visual size to match actual hitbox
+    if size then
+        root.Size = Vector3.new(size, size, size)
+        visual.Adornee = root
+    end
+end
+
+local function removeHitbox(character)
+    if not character then return end
+    local root = character:FindFirstChild("HumanoidRootPart")
+    if not root then return end
+    
+    -- Advanced hitbox removal
+    local function modifyCollision()
+        root.CanCollide = false
+        root.CanTouch = false
+        root.CanQuery = false
+        
+        -- Create invisible barrier
+        local barrier = Instance.new("Part")
+        barrier.Name = "HitboxBarrier"
+        barrier.Transparency = 1
+        barrier.CanCollide = true
+        barrier.Anchored = true
+        barrier.Size = Vector3.new(0.1, 0.1, 0.1)
+        barrier.Position = root.Position
+        barrier.Parent = root
+    end
+    
+    local success, err = pcall(modifyCollision)
+    if not success then
+        createNotification("Failed to remove hitbox: " .. tostring(err))
+    end
+end
+
+-- Add Content to Sections
+local removeHitboxContainer, removeFrame, removeSwitch, toggleRemoveHitbox = createToggleSwitch(personalHitboxSection, "Remove Hitbox", 10)
+local showHitboxContainer, showFrame, showSwitch, toggleShowHitbox = createToggleSwitch(personalHitboxSection, "Show Hitbox", 60)
+
+local playerSelect, playerInput = createPlayerSelection(hitboxExpanderSection, 10)
+local hitboxSlider, sliderButton, sliderValue, updateSliderValue = createSlider(hitboxExpanderSection, "Hitbox Size", 80, 2, 20)
+local showPlayerHitboxContainer, playerShowFrame, playerShowSwitch, togglePlayerHitbox = createToggleSwitch(hitboxExpanderSection, "Show Player Hitbox", 170)
+
+-- Section Switching Logic
+personalButton.MouseButton1Click:Connect(function()
+    personalHitboxSection.Visible = true
+    hitboxExpanderSection.Visible = false
+    TweenService:Create(personalButton, TweenInfo.new(0.2), {
+        BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+    }):Play()
+    TweenService:Create(expanderButton, TweenInfo.new(0.2), {
+        BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+    }):Play()
+end)
+
+expanderButton.MouseButton1Click:Connect(function()
+    personalHitboxSection.Visible = false
+    hitboxExpanderSection.Visible = true
+    TweenService:Create(expanderButton, TweenInfo.new(0.2), {
+        BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+    }):Play()
+    TweenService:Create(personalButton, TweenInfo.new(0.2), {
+        BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+    }):Play()
+end)
+
+-- Add title and control buttons
+local title = Instance.new("TextLabel")
+title.Size = UDim2.new(1, -100, 1, 0)
+title.Position = UDim2.new(0, 10, 0, 0)
+title.BackgroundTransparency = 1
+title.Text = "Hitbox Controller"
+title.TextColor3 = Color3.fromRGB(255, 255, 255)
+title.Font = Enum.Font.GothamBold
+title.TextSize = 14
+title.TextXAlignment = Enum.TextXAlignment.Left
+title.Parent = titleBar
+
+-- Control Buttons
+local function createControlButton(text, posX)
+    local button = Instance.new("TextButton")
+    button.Size = UDim2.new(0, 30, 0, 30)
+    button.Position = UDim2.new(1, posX, 0, 0)
+    button.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+    button.Text = text
+    button.TextColor3 = Color3.fromRGB(255, 255, 255)
+    button.TextSize = 16
+    button.Font = Enum.Font.GothamBold
+    button.AutoButtonColor = false
+    
+    local buttonCorner = Instance.new("UICorner")
+    buttonCorner.CornerRadius = UDim.new(0, 8)
+    buttonCorner.Parent = button
+    
+    -- Hover Effect
+    button.MouseEnter:Connect(function()
+        TweenService:Create(button, TweenInfo.new(0.2), {
+            BackgroundColor3 = Color3.fromRGB(55, 55, 55)
+        }):Play()
+        button.MouseCursor = "PointingHand"
+    end)
+    
+    button.MouseLeave:Connect(function()
+        TweenService:Create(button, TweenInfo.new(0.2), {
+            BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+        }):Play()
+    end)
+    
+    button.Parent = titleBar
+    return button
+end
+
+local minButton = createControlButton("-", -60)
+local closeButton = createControlButton("×", -30)
+
+-- Button Functionality
+minButton.MouseButton1Click:Connect(function()
+    local isClosed = contentFrame.Visible
+    contentFrame.Visible = not isClosed
+    sideBar.Visible = not isClosed
+    
+    TweenService:Create(mainFrame, TweenInfo.new(0.3), {
+        Size = isClosed and UDim2.new(0, 500, 0, 30) or UDim2.new(0, 500, 0, 350)
+    }):Play()
+end)
+
+closeButton.MouseButton1Click:Connect(function()
+    gui:Destroy()
+end)
+
+-- Make GUI draggable
+local dragging, dragInput, dragStart, startPos
+
+titleBar.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragging = true
+        dragStart = input.Position
+        startPos = mainFrame.Position
+    end
+end)
+
+titleBar.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragging = false
+    end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseMovement and dragging then
+        local delta = input.Position - dragStart
+        TweenService:Create(mainFrame, TweenInfo.new(0.1), {
+            Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+        }):Play()
+    end
+end)
+
+-- Connect hitbox functionality
+local function handlePersonalHitbox()
+    if toggleRemoveHitbox() then
+        removeHitbox(player.Character)
+        createNotification("Personal hitbox removed")
+    else
+        if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+            player.Character.HumanoidRootPart.CanCollide = true
+            player.Character.HumanoidRootPart.CanTouch = true
+            player.Character.HumanoidRootPart.CanQuery = true
+            local barrier = player.Character.HumanoidRootPart:FindFirstChild("HitboxBarrier")
+            if barrier then barrier:Destroy() end
+            createNotification("Personal hitbox restored")
+        end
+    end
+end
+
+local function handleShowHitbox()
+    if toggleShowHitbox() then
+        updateHitboxVisual(player.Character)
+        createNotification("Hitbox visualization enabled")
+    else
+        if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+            local visual = player.Character.HumanoidRootPart:FindFirstChild("HitboxVisual")
+            if visual then visual:Destroy() end
+            createNotification("Hitbox visualization disabled")
+        end
+    end
+end
+
+removeFrame.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        handlePersonalHitbox()
+    end
+end)
+
+showFrame.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        handleShowHitbox()
+    end
+end)
+
+-- Player hitbox management
+local function updateTargetPlayer()
+    local targetPlayer = Players:FindFirstChild(playerInput.Text)
+    if targetPlayer then
+        local size = tonumber(sliderValue.Text)
+        if size then
+            updateHitboxVisual(targetPlayer.Character, size)
+            createNotification(string.format("Updated %s's hitbox size to %.1f", targetPlayer.Name, size))
+        end
+    else
+        createNotification("Player not found!")
+    end
+end
+
+sliderValue.FocusLost:Connect(function(enterPressed)
+    if enterPressed then
+        updateTargetPlayer()
+    end
+end)
+
+-- Character Added Connections
+player.CharacterAdded:Connect(function(character)
+    wait(0.5) -- Wait for character to load
+    if removeSwitch.Position.X.Offset > 2 then
+        removeHitbox(character)
+    end
+    if showSwitch.Position.X.Offset > 2 then
+        updateHitboxVisual(character)
+    end
+end)
+
+-- Initialize
+if player.Character then
+    if removeSwitch.Position.X.Offset > 2 then
+        removeHitbox(player.Character)
+    end
+    if showSwitch.Position.X.Offset > 2 then
+        updateHitboxVisual(player.Character)
+    end
+end
