@@ -1,0 +1,120 @@
+-- Part 1: Core Systems and UI Setup
+if getgenv().MTAPILoaded ~= nil then
+    return
+end
+
+getgenv().MTAPILoaded = false
+
+-- Load required dependencies
+loadstring(game:HttpGet("https://raw.githubusercontent.com/RectangularObject/MT-Api-v2/main/__source/mt-api%20v2.lua", true))()
+local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/RectangularObject/LinoriaLib/main/Library.lua"))()
+
+-- Initialize core services
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local TweenService = game:GetService("TweenService")
+
+-- Core variables
+local LocalPlayer = Players.LocalPlayer
+local Camera = workspace.CurrentCamera
+local PlayerData = {}
+-- Part 2: Hitbox and ESP Systems
+
+-- Hitbox Configuration
+local HitboxConfig = {
+    Size = Vector3.new(10, 10, 10),
+    Transparency = 0.5,
+    Color = Color3.fromRGB(255, 0, 0),
+    Enabled = false,
+    TeamCheck = true,
+    PartList = {"Head", "HumanoidRootPart", "Torso"}
+}
+
+-- ESP Configuration
+local ESPConfig = {
+    Enabled = false,
+    ShowName = true,
+    ShowDistance = true,
+    ShowHealth = true,
+    TeamColor = true,
+    BoxEnabled = true,
+    TracerEnabled = false,
+    ChamsEnabled = false,
+    TextSize = 14,
+    TextFont = 2
+}
+
+-- Create main window
+local MainWindow = Library:CreateWindow("Enhanced Hitbox System")
+local MainTab = MainWindow:AddTab("Main")
+local HitboxTab = MainWindow:AddTab("Hitbox")
+local ESPTab = MainWindow:AddTab("ESP")
+local SettingsTab = MainWindow:AddTab("Settings")
+
+-- Add hitbox controls
+local HitboxSection = HitboxTab:AddLeftGroupbox("Hitbox Controls")
+HitboxSection:AddToggle("HitboxEnabled", {Text = "Enable Hitbox", Default = false})
+HitboxSection:AddSlider("HitboxSize", {Text = "Size", Min = 1, Max = 50, Default = 10})
+HitboxSection:AddSlider("HitboxTransparency", {Text = "Transparency", Min = 0, Max = 1, Default = 0.5})
+-- Part 3: Player Handling and Final Implementation
+
+-- Player handling system
+local function HandlePlayer(player)
+    if player == LocalPlayer then return end
+    
+    PlayerData[player] = {
+        ESP = CreateESP(player),
+        Hitbox = CreateHitbox(player),
+        Connections = {}
+    }
+    
+    -- Character handling
+    local function CharacterAdded(character)
+        if not character then return end
+        local humanoid = character:WaitForChild("Humanoid")
+        local rootPart = character:WaitForChild("HumanoidRootPart")
+        
+        ApplyHitbox(character)
+        UpdateESP(player)
+        
+        PlayerData[player].Connections["Died"] = humanoid.Died:Connect(function()
+            UpdatePlayerState(player, "Dead")
+        end)
+    end
+    
+    PlayerData[player].Connections["CharacterAdded"] = player.CharacterAdded:Connect(CharacterAdded)
+    if player.Character then CharacterAdded(player.Character) end
+end
+
+-- Main update loop
+RunService.RenderStepped:Connect(function()
+    for player, data in pairs(PlayerData) do
+        if Toggles.HitboxEnabled.Value then
+            UpdateHitbox(player)
+        end
+        if Toggles.ESPEnabled.Value then
+            UpdateESP(player)
+        end
+    end
+end)
+
+-- Initialize for existing players
+for _, player in ipairs(Players:GetPlayers()) do
+    HandlePlayer(player)
+end
+
+-- Handle new players
+Players.PlayerAdded:Connect(HandlePlayer)
+
+-- Cleanup on player removal
+Players.PlayerRemoving:Connect(function(player)
+    if PlayerData[player] then
+        CleanupPlayer(player)
+        PlayerData[player] = nil
+    end
+end)
+
+-- Final initialization
+getgenv().MTAPILoaded = true
+Library:Notify("Script loaded successfully!")
