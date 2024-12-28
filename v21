@@ -1,0 +1,533 @@
+local Players = game:GetService("Players")
+local CoreGui = game:GetService("CoreGui")
+local TweenService = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+local player = Players.LocalPlayer
+
+-- Clean only our GUI
+for _, gui in pairs(CoreGui:GetChildren()) do
+    if gui:IsA("ScreenGui") and gui.Name:match("HitboxController") then
+        gui:Destroy()
+    end
+end
+
+-- Create main GUI
+local gui = Instance.new("ScreenGui")
+gui.Name = "HitboxController_" .. math.random(1000000,9999999)
+gui.ResetOnSpawn = false
+gui.Parent = CoreGui
+
+-- Create main frame with shadow
+local mainFrame = Instance.new("Frame")
+mainFrame.Size = UDim2.new(0, 500, 0, 350)
+mainFrame.Position = UDim2.new(0.5, -250, 0.5, -175)
+mainFrame.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+mainFrame.Parent = gui
+
+local shadow = Instance.new("ImageLabel")
+shadow.Size = UDim2.new(1, 40, 1, 40)
+shadow.Position = UDim2.new(0, -20, 0, -20)
+shadow.BackgroundTransparency = 1
+shadow.Image = "rbxassetid://5554236805"
+shadow.ImageColor3 = Color3.fromRGB(0, 0, 0)
+shadow.ImageTransparency = 0.6
+shadow.Parent = mainFrame
+-- Title Bar with Controls
+local titleBar = Instance.new("Frame")
+titleBar.Size = UDim2.new(1, 0, 0, 30)
+titleBar.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+titleBar.Parent = mainFrame
+
+local titleCorner = Instance.new("UICorner")
+titleCorner.CornerRadius = UDim.new(0, 8)
+titleCorner.Parent = titleBar
+
+local titleLabel = Instance.new("TextLabel")
+titleLabel.Size = UDim2.new(1, -100, 1, 0)
+titleLabel.Position = UDim2.new(0, 10, 0, 0)
+titleLabel.BackgroundTransparency = 1
+titleLabel.Text = "Hitbox Controller"
+titleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+titleLabel.Font = Enum.Font.GothamBold
+titleLabel.TextSize = 14
+titleLabel.TextXAlignment = Enum.TextXAlignment.Left
+titleLabel.Parent = titleBar
+
+-- Close and Minimize Buttons
+local closeButton = Instance.new("TextButton")
+closeButton.Size = UDim2.new(0, 30, 0, 30)
+closeButton.Position = UDim2.new(1, -30, 0, 0)
+closeButton.BackgroundTransparency = 1
+closeButton.Text = "×"
+closeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+closeButton.TextSize = 20
+closeButton.Font = Enum.Font.GothamBold
+closeButton.Parent = titleBar
+closeButton.MouseEnter:Connect(function()
+    closeButton.TextColor3 = Color3.fromRGB(255, 75, 75)
+    UserInputService.MouseIcon = "rbxasset://SystemCursors/Hand"
+end)
+closeButton.MouseLeave:Connect(function()
+    closeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+    UserInputService.MouseIcon = ""
+end)
+
+local minimizeButton = Instance.new("TextButton")
+minimizeButton.Size = UDim2.new(0, 30, 0, 30)
+minimizeButton.Position = UDim2.new(1, -60, 0, 0)
+minimizeButton.BackgroundTransparency = 1
+minimizeButton.Text = "-"
+minimizeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+minimizeButton.TextSize = 20
+minimizeButton.Font = Enum.Font.GothamBold
+minimizeButton.Parent = titleBar
+-- Professional Notification System
+local function createNotification(message, type)
+    local notif = Instance.new("Frame")
+    notif.Name = "HitboxNotification"
+    notif.Size = UDim2.new(0, 250, 0, 60)
+    notif.Position = UDim2.new(1, 260, 1, -70)
+    notif.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+    notif.BorderSizePixel = 0
+    notif.Parent = gui
+
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, 6)
+    corner.Parent = notif
+
+    local color = type == "success" and Color3.fromRGB(0, 255, 127) or 
+                  type == "warning" and Color3.fromRGB(255, 165, 0) or 
+                  Color3.fromRGB(255, 75, 75)
+
+    local indicator = Instance.new("Frame")
+    indicator.Size = UDim2.new(0, 4, 1, 0)
+    indicator.BackgroundColor3 = color
+    indicator.BorderSizePixel = 0
+    indicator.Parent = notif
+
+    local text = Instance.new("TextLabel")
+    text.Size = UDim2.new(1, -20, 1, 0)
+    text.Position = UDim2.new(0, 15, 0, 0)
+    text.BackgroundTransparency = 1
+    text.Text = message
+    text.TextColor3 = Color3.fromRGB(255, 255, 255)
+    text.TextWrapped = true
+    text.Font = Enum.Font.Gotham
+    text.TextSize = 14
+    text.TextXAlignment = Enum.TextXAlignment.Left
+    text.Parent = notif
+
+    -- Smooth Animation
+    TweenService:Create(notif, TweenInfo.new(0.3), {
+        Position = UDim2.new(1, -260, 1, -70)
+    }):Play()
+
+    task.delay(5, function()
+        TweenService:Create(notif, TweenInfo.new(0.3), {
+            Position = UDim2.new(1, 260, 1, -70)
+        }):Play()
+        task.wait(0.3)
+        notif:Destroy()
+    end)
+end
+
+-- Enhanced Drag Functionality
+local dragging = false
+local dragStart = nil
+local startPos = nil
+
+titleBar.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragging = true
+        dragStart = input.Position
+        startPos = mainFrame.Position
+    end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseMovement and dragging then
+        local delta = input.Position - dragStart
+        mainFrame.Position = UDim2.new(
+            startPos.X.Scale,
+            startPos.X.Offset + delta.X,
+            startPos.Y.Scale,
+            startPos.Y.Offset + delta.Y
+        )
+    end
+end)
+
+UserInputService.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragging = false
+    end
+end)
+-- Sidebar Setup
+local sideBar = Instance.new("Frame")
+sideBar.Size = UDim2.new(0, 150, 1, -30)
+sideBar.Position = UDim2.new(0, 0, 0, 30)
+sideBar.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+sideBar.Parent = mainFrame
+
+local contentFrame = Instance.new("Frame")
+contentFrame.Size = UDim2.new(1, -160, 1, -40)
+contentFrame.Position = UDim2.new(0, 155, 0, 35)
+contentFrame.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+contentFrame.Parent = mainFrame
+
+-- Enhanced Section Buttons
+local function createSectionButton(text, yPos)
+    local button = Instance.new("TextButton")
+    button.Size = UDim2.new(0.9, 0, 0, 40)
+    button.Position = UDim2.new(0.05, 0, 0, yPos)
+    button.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+    button.Text = text
+    button.TextColor3 = Color3.fromRGB(255, 255, 255)
+    button.Font = Enum.Font.GothamBold
+    button.TextSize = 14
+    button.Parent = sideBar
+    
+    local buttonCorner = Instance.new("UICorner")
+    buttonCorner.CornerRadius = UDim.new(0, 6)
+    buttonCorner.Parent = button
+    
+    -- Interactive cursor
+    button.MouseEnter:Connect(function()
+        UserInputService.MouseIcon = "rbxasset://SystemCursors/Hand"
+        TweenService:Create(button, TweenInfo.new(0.2), {
+            BackgroundColor3 = Color3.fromRGB(55, 55, 55)
+        }):Play()
+    end)
+    
+    button.MouseLeave:Connect(function()
+        UserInputService.MouseIcon = ""
+        TweenService:Create(button, TweenInfo.new(0.2), {
+            BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+        }):Play()
+    end)
+    
+    return button
+end
+-- Enhanced Slider Function
+local function createSlider(parent, title, min, max, default, yPos)
+    local container = Instance.new("Frame")
+    container.Size = UDim2.new(1, -20, 0, 60)
+    container.Position = UDim2.new(0, 10, 0, yPos)
+    container.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+    container.Parent = parent
+
+    local sliderTitle = Instance.new("TextLabel")
+    sliderTitle.Size = UDim2.new(0.8, 0, 0, 20)
+    sliderTitle.Position = UDim2.new(0.1, 0, 0.1, 0)
+    sliderTitle.BackgroundTransparency = 1
+    sliderTitle.Text = title
+    sliderTitle.TextColor3 = Color3.fromRGB(255, 255, 255)
+    sliderTitle.Font = Enum.Font.GothamBold
+    sliderTitle.TextSize = 14
+    sliderTitle.TextXAlignment = Enum.TextXAlignment.Left
+    sliderTitle.Parent = container
+
+    local sliderBar = Instance.new("Frame")
+    sliderBar.Size = UDim2.new(0.8, 0, 0, 4)
+    sliderBar.Position = UDim2.new(0.1, 0, 0.7, 0)
+    sliderBar.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+    sliderBar.Parent = container
+
+    local sliderKnob = Instance.new("Frame")
+    sliderKnob.Size = UDim2.new(0, 16, 0, 16)
+    sliderKnob.Position = UDim2.new(0, -8, 0.5, -8)
+    sliderKnob.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+    sliderKnob.Parent = sliderBar
+
+    local knobCorner = Instance.new("UICorner")
+    knobCorner.CornerRadius = UDim.new(1, 0)
+    knobCorner.Parent = sliderKnob
+
+    -- Interactive cursor and visual feedback
+    sliderKnob.MouseEnter:Connect(function()
+        UserInputService.MouseIcon = "rbxasset://SystemCursors/Hand"
+        TweenService:Create(sliderKnob, TweenInfo.new(0.2), {
+            Size = UDim2.new(0, 18, 0, 18),
+            Position = UDim2.new(0, -9, 0.5, -9)
+        }):Play()
+    end)
+
+    sliderKnob.MouseLeave:Connect(function()
+        UserInputService.MouseIcon = ""
+        TweenService:Create(sliderKnob, TweenInfo.new(0.2), {
+            Size = UDim2.new(0, 16, 0, 16),
+            Position = UDim2.new(0, -8, 0.5, -8)
+        }):Play()
+    end)
+    -- Value Display Box
+    local valueBox = Instance.new("TextBox")
+    valueBox.Size = UDim2.new(0, 50, 0, 20)
+    valueBox.Position = UDim2.new(0.9, 0, 0.2, 0)
+    valueBox.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+    valueBox.Text = tostring(default)
+    valueBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+    valueBox.Font = Enum.Font.Gotham
+    valueBox.TextSize = 14
+    valueBox.Parent = container
+
+    local valueCorner = Instance.new("UICorner")
+    valueCorner.CornerRadius = UDim.new(0, 4)
+    valueCorner.Parent = valueBox
+
+    -- Slider Functionality
+    local dragging = false
+    local function updateSlider(input)
+        local relativePos = math.clamp((input.Position.X - sliderBar.AbsolutePosition.X) / sliderBar.AbsoluteSize.X, 0, 1)
+        local value = math.floor(min + (max - min) * relativePos)
+        valueBox.Text = tostring(value)
+        sliderKnob.Position = UDim2.new(relativePos, -8, 0.5, -8)
+        return value
+    end
+
+    sliderBar.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            dragging = true
+            updateSlider(input)
+        end
+    end)
+
+    UserInputService.InputChanged:Connect(function(input)
+        if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+            updateSlider(input)
+        end
+    end)
+
+    UserInputService.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            dragging = false
+        end
+    end)
+
+    return container, valueBox
+end
+-- Enhanced Toggle Function
+local function createToggle(parent, text, yPos)
+    local container = Instance.new("Frame")
+    container.Size = UDim2.new(1, -20, 0, 40)
+    container.Position = UDim2.new(0, 10, 0, yPos)
+    container.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+    container.Parent = parent
+
+    local label = Instance.new("TextLabel")
+    label.Size = UDim2.new(0.7, 0, 1, 0)
+    label.Position = UDim2.new(0, 10, 0, 0)
+    label.BackgroundTransparency = 1
+    label.Text = text
+    label.TextColor3 = Color3.fromRGB(255, 255, 255)
+    label.Font = Enum.Font.GothamBold
+    label.TextSize = 14
+    label.TextXAlignment = Enum.TextXAlignment.Left
+    label.Parent = container
+
+    local toggleFrame = Instance.new("Frame")
+    toggleFrame.Size = UDim2.new(0, 44, 0, 24)
+    toggleFrame.Position = UDim2.new(0.85, 0, 0.5, -12)
+    toggleFrame.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+    toggleFrame.Parent = container
+
+    local switch = Instance.new("Frame")
+    switch.Size = UDim2.new(0, 20, 0, 20)
+    switch.Position = UDim2.new(0, 2, 0.5, -10)
+    switch.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+    switch.Parent = toggleFrame
+
+    -- Add corners and hover effects
+    local toggleCorner = Instance.new("UICorner")
+    toggleCorner.CornerRadius = UDim.new(1, 0)
+    toggleCorner.Parent = toggleFrame
+
+    local switchCorner = Instance.new("UICorner")
+    switchCorner.CornerRadius = UDim.new(1, 0)
+    switchCorner.Parent = switch
+
+    -- Interactive cursor and visual feedback
+    toggleFrame.MouseEnter:Connect(function()
+        UserInputService.MouseIcon = "rbxasset://SystemCursors/Hand"
+    end)
+
+    toggleFrame.MouseLeave:Connect(function()
+        UserInputService.MouseIcon = ""
+    end)
+    -- Toggle State Management
+    local enabled = false
+    local function updateToggle()
+        enabled = not enabled
+        local newPos = enabled and UDim2.new(1, -22, 0.5, -10) or UDim2.new(0, 2, 0.5, -10)
+        local newColor = enabled and Color3.fromRGB(0, 255, 127) or Color3.fromRGB(255, 255, 255)
+        
+        TweenService:Create(switch, TweenInfo.new(0.2), {
+            Position = newPos,
+            BackgroundColor3 = newColor
+        }):Play()
+        
+        -- Notification on toggle
+        createNotification(text .. (enabled and " Enabled" or " Disabled"), 
+            enabled and "success" or "warning")
+        
+        return enabled
+    end
+
+    toggleFrame.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            updateToggle()
+        end
+    end)
+
+    return container, function() return enabled end, updateToggle
+end
+
+-- Bomb Detection System
+local function createBombDetector()
+    local detector = Instance.new("Frame")
+    detector.Size = UDim2.new(0, 120, 0, 30)
+    detector.Position = UDim2.new(0, 10, 0, 35)
+    detector.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+    detector.Parent = mainFrame
+
+    local statusLabel = Instance.new("TextLabel")
+    statusLabel.Size = UDim2.new(1, -10, 1, 0)
+    statusLabel.Position = UDim2.new(0, 5, 0, 0)
+    statusLabel.BackgroundTransparency = 1
+    statusLabel.Text = "Status: Safe"
+    statusLabel.TextColor3 = Color3.fromRGB(0, 255, 127)
+    statusLabel.Font = Enum.Font.GothamBold
+    statusLabel.TextSize = 12
+    statusLabel.Parent = detector
+
+    return statusLabel
+end
+-- Create Main Sections
+local personalSection = Instance.new("Frame")
+personalSection.Size = UDim2.new(1, -20, 1, -80)
+personalSection.Position = UDim2.new(0, 10, 0, 70)
+personalSection.BackgroundTransparency = 1
+personalSection.Visible = true
+personalSection.Parent = contentFrame
+
+local expanderSection = Instance.new("Frame")
+expanderSection.Size = UDim2.new(1, -20, 1, -80)
+expanderSection.Position = UDim2.new(0, 10, 0, 70)
+expanderSection.BackgroundTransparency = 1
+expanderSection.Visible = false
+expanderSection.Parent = contentFrame
+
+-- Enhanced Hitbox Modification
+local function modifyHitbox(character, enabled, size)
+    if not character then return end
+    
+    local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
+    if not humanoidRootPart then return end
+    
+    -- Check for bomb
+    local hasBomb = false
+    for _, item in pairs(character:GetChildren()) do
+        if item.Name:lower():match("bomb") then
+            hasBomb = true
+            createNotification("⚠️ Bomb Detected!", "warning")
+            break
+        end
+    end
+    
+    if not hasBomb then
+        humanoidRootPart.Size = enabled and Vector3.new(size, size, size) or Vector3.new(2, 2, 1)
+        humanoidRootPart.Transparency = enabled and 0.5 or 1
+        humanoidRootPart.CanCollide = false
+        
+        -- Update hitbox visualizer
+        local visual = humanoidRootPart:FindFirstChild("HitboxVisual")
+        if visual then visual:Destroy() end
+        
+        if enabled then
+            visual = Instance.new("SelectionBox")
+            visual.Name = "HitboxVisual"
+            visual.Color3 = Color3.fromRGB(0, 255, 127)
+            visual.LineThickness = 0.05
+            visual.Transparency = 0.3
+            visual.Adornee = humanoidRootPart
+            visual.Parent = humanoidRootPart
+        end
+    end
+end
+-- Create Section Buttons
+local personalButton = createSectionButton("Personal Hitbox", 10)
+local expanderButton = createSectionButton("Hitbox Expander", 60)
+
+-- Create Controls for Personal Section
+local personalToggle, getPersonalEnabled = createToggle(personalSection, "Enable Personal Hitbox", 10)
+local personalVisualizerToggle, getVisualizerEnabled = createToggle(personalSection, "Show Hitbox Visualizer", 60)
+local personalSlider, personalValue = createSlider(personalSection, "Personal Hitbox Size", 0, 20, 2, 110)
+
+-- Create Controls for Expander Section
+local expanderToggle, getExpanderEnabled = createToggle(expanderSection, "Enable Global Hitbox", 10)
+local expanderVisualizerToggle, getExpanderVisualizerEnabled = createToggle(expanderSection, "Show Global Visualizer", 60)
+local expanderSlider, expanderValue = createSlider(expanderSection, "Global Hitbox Size", 0, 20, 2, 110)
+
+-- Section Switching with Animations
+personalButton.MouseButton1Click:Connect(function()
+    TweenService:Create(personalSection, TweenInfo.new(0.3), {BackgroundTransparency = 1}):Play()
+    TweenService:Create(expanderSection, TweenInfo.new(0.3), {BackgroundTransparency = 0}):Play()
+    personalSection.Visible = true
+    expanderSection.Visible = false
+    personalButton.BackgroundColor3 = Color3.fromRGB(0, 255, 127)
+    expanderButton.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+end)
+
+expanderButton.MouseButton1Click:Connect(function()
+    TweenService:Create(personalSection, TweenInfo.new(0.3), {BackgroundTransparency = 0}):Play()
+    TweenService:Create(expanderSection, TweenInfo.new(0.3), {BackgroundTransparency = 1}):Play()
+    personalSection.Visible = false
+    expanderSection.Visible = true
+    expanderButton.BackgroundColor3 = Color3.fromRGB(0, 255, 127)
+    personalButton.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+end)
+-- Minimize and Close Button Logic
+local minimized = false
+minimizeButton.MouseButton1Click:Connect(function()
+    minimized = not minimized
+    local targetSize = minimized and UDim2.new(0, 500, 0, 30) or UDim2.new(0, 500, 0, 350)
+    TweenService:Create(mainFrame, TweenInfo.new(0.3), {
+        Size = targetSize
+    }):Play()
+    createNotification(minimized and "GUI Minimized" or "GUI Expanded", "success")
+end)
+
+closeButton.MouseButton1Click:Connect(function()
+    TweenService:Create(mainFrame, TweenInfo.new(0.3), {
+        Transparency = 1,
+        Position = UDim2.new(0.5, -250, 1, 0)
+    }):Play()
+    task.wait(0.3)
+    gui:Destroy()
+    createNotification("Hitbox Controller Closed", "success")
+end)
+
+-- Main Update Loop
+RunService.Heartbeat:Connect(function()
+    -- Personal Hitbox Update
+    if getPersonalEnabled() and player.Character then
+        local size = tonumber(personalValue.Text) or 2
+        modifyHitbox(player.Character, true, size)
+    end
+    
+    -- Global Hitbox Update
+    if getExpanderEnabled() then
+        for _, plr in pairs(Players:GetPlayers()) do
+            if plr ~= player and plr.Character then
+                local size = tonumber(expanderValue.Text) or 2
+                modifyHitbox(plr.Character, true, size)
+            end
+        end
+    end
+end)
+
+-- Initialize with Success Message
+task.spawn(function()
+    createNotification("Hitbox Controller Loaded Successfully!", "success")
+end)
+
+print("Hitbox Controller Fully Loaded!")
