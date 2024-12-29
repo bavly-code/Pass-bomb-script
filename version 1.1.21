@@ -1,0 +1,677 @@
+-- Services and Core Setup
+local Players = game:GetService("Players")
+local CoreGui = game:GetService("CoreGui")
+local TweenService = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+local HttpService = game:GetService("HttpService")
+local player = Players.LocalPlayer
+local mouse = player:GetMouse()
+
+-- Core Configuration
+local Config = {
+    GUI = {
+        Title = "Pass The Bomb Ultimate",
+        MainSize = UDim2.new(0, 600, 0, 450),
+        TitleBarHeight = 40,
+        CornerRadius = UDim.new(0, 8),
+        MinimizedSize = UDim2.new(0, 600, 0, 40)
+    },
+    Colors = {
+        Background = Color3.fromRGB(25, 25, 25),
+        TitleBar = Color3.fromRGB(30, 30, 30),
+        Section = Color3.fromRGB(35, 35, 35),
+        Button = Color3.fromRGB(40, 40, 40),
+        ButtonHover = Color3.fromRGB(45, 45, 45),
+        Enabled = Color3.fromRGB(0, 255, 127),
+        Disabled = Color3.fromRGB(255, 0, 0),
+        Text = Color3.fromRGB(255, 255, 255),
+        SubText = Color3.fromRGB(200, 200, 200),
+        Input = Color3.fromRGB(45, 45, 45),
+        Border = Color3.fromRGB(50, 50, 50),
+        ESP = {
+            Enemy = Color3.fromRGB(255, 0, 0),
+            Team = Color3.fromRGB(0, 255, 0),
+            Bomb = Color3.fromRGB(255, 165, 0),
+            Health = Color3.fromRGB(0, 255, 0),
+            Distance = Color3.fromRGB(255, 255, 255)
+        }
+    },
+    Icons = {
+        Close = "rbxassetid://11293981586",
+        Minimize = "rbxassetid://11293981898",
+        ESP = "rbxassetid://11293982265",
+        Hitbox = "rbxassetid://11293982587",
+        Movement = "rbxassetid://11293982880",
+        Bomb = "rbxassetid://11293983176",
+        Settings = "rbxassetid://11293983432"
+    }
+}
+
+-- Create Main GUI
+local gui = Instance.new("ScreenGui")
+gui.Name = "PTBScript_" .. math.random(1000000,9999999)
+gui.ResetOnSpawn = false
+gui.Parent = CoreGui
+
+-- Main Frame Creation
+local mainFrame = Instance.new("Frame")
+mainFrame.Size = Config.GUI.MainSize
+mainFrame.Position = UDim2.new(0.5, -300, 0.5, -225)
+mainFrame.BackgroundColor3 = Config.Colors.Background
+mainFrame.BorderSizePixel = 0
+mainFrame.ClipsDescendants = true
+mainFrame.Parent = gui
+
+-- Add Corners Function
+local function AddCorners(instance, radius)
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = radius or Config.GUI.CornerRadius
+    corner.Parent = instance
+    return corner
+end
+
+-- Add Stroke Function
+local function AddStroke(instance, color)
+    local stroke = Instance.new("UIStroke")
+    stroke.Color = color or Config.Colors.Border
+    stroke.Thickness = 1
+    stroke.Parent = instance
+    return stroke
+end
+
+-- Title Bar Creation
+local titleBar = Instance.new("Frame")
+titleBar.Size = UDim2.new(1, 0, 0, Config.GUI.TitleBarHeight)
+titleBar.BackgroundColor3 = Config.Colors.TitleBar
+titleBar.BorderSizePixel = 0
+titleBar.Parent = mainFrame
+AddCorners(titleBar)
+AddStroke(titleBar)
+
+-- Title Text
+local title = Instance.new("TextLabel")
+title.Size = UDim2.new(0.5, 0, 1, 0)
+title.Position = UDim2.new(0.25, 0, 0, 0)
+title.BackgroundTransparency = 1
+title.Text = Config.GUI.Title
+title.TextColor3 = Config.Colors.Text
+title.TextSize = 20
+title.Font = Enum.Font.GothamBold
+title.Parent = titleBar
+
+-- Close Button
+local closeButton = Instance.new("ImageButton")
+closeButton.Size = UDim2.new(0, 30, 0, 30)
+closeButton.Position = UDim2.new(1, -35, 0, 5)
+closeButton.BackgroundTransparency = 1
+closeButton.Image = Config.Icons.Close
+closeButton.Parent = titleBar
+
+-- Minimize Button
+local minimizeButton = Instance.new("ImageButton")
+minimizeButton.Size = UDim2.new(0, 30, 0, 30)
+minimizeButton.Position = UDim2.new(1, -70, 0, 5)
+minimizeButton.BackgroundTransparency = 1
+minimizeButton.Image = Config.Icons.Minimize
+minimizeButton.Parent = titleBar
+
+-- Container Creation
+local tabContainer = Instance.new("Frame")
+tabContainer.Size = UDim2.new(0, 150, 1, -Config.GUI.TitleBarHeight)
+tabContainer.Position = UDim2.new(0, 0, 0, Config.GUI.TitleBarHeight)
+tabContainer.BackgroundColor3 = Config.Colors.Section
+tabContainer.BorderSizePixel = 0
+tabContainer.Parent = mainFrame
+AddCorners(tabContainer)
+AddStroke(tabContainer)
+
+local contentContainer = Instance.new("Frame")
+contentContainer.Size = UDim2.new(1, -150, 1, -Config.GUI.TitleBarHeight)
+contentContainer.Position = UDim2.new(0, 150, 0, Config.GUI.TitleBarHeight)
+contentContainer.BackgroundColor3 = Config.Colors.Background
+contentContainer.BorderSizePixel = 0
+contentContainer.Parent = mainFrame
+AddCorners(contentContainer)
+AddStroke(contentContainer)
+
+-- Section Creation
+local sections = {}
+local currentSection = nil
+
+local function CreateSection(name, icon)
+    -- Tab Button
+    local tabButton = Instance.new("TextButton")
+    tabButton.Size = UDim2.new(0.9, 0, 0, 40)
+    tabButton.Position = UDim2.new(0.05, 0, 0, #sections * 45 + 5)
+    tabButton.BackgroundColor3 = Config.Colors.Button
+    tabButton.Text = ""
+    tabButton.Parent = tabContainer
+    AddCorners(tabButton)
+    AddStroke(tabButton)
+
+    -- Tab Icon
+    local tabIcon = Instance.new("ImageLabel")
+    tabIcon.Size = UDim2.new(0, 25, 0, 25)
+    tabIcon.Position = UDim2.new(0, 10, 0.5, -12)
+    tabIcon.BackgroundTransparency = 1
+    tabIcon.Image = icon
+    tabIcon.Parent = tabButton
+
+    -- Tab Text
+    local tabText = Instance.new("TextLabel")
+    tabText.Size = UDim2.new(1, -50, 1, 0)
+    tabText.Position = UDim2.new(0, 45, 0, 0)
+    tabText.BackgroundTransparency = 1
+    tabText.Text = name
+    tabText.TextColor3 = Config.Colors.Text
+    tabText.TextSize = 16
+    tabText.Font = Enum.Font.GothamSemibold
+    tabText.TextXAlignment = Enum.TextXAlignment.Left
+    tabText.Parent = tabButton
+
+    -- Content Frame
+    local contentFrame = Instance.new("ScrollingFrame")
+    contentFrame.Size = UDim2.new(1, -20, 1, -20)
+    contentFrame.Position = UDim2.new(0, 10, 0, 10)
+    contentFrame.BackgroundTransparency = 1
+    contentFrame.ScrollBarThickness = 4
+    contentFrame.Visible = false
+    contentFrame.Parent = contentContainer
+
+    local section = {
+        Button = tabButton,
+        Content = contentFrame,
+        Elements = {}
+    }
+
+    tabButton.MouseButton1Click:Connect(function()
+        if currentSection then
+            currentSection.Content.Visible = false
+            TweenService:Create(currentSection.Button, TweenInfo.new(0.3), {
+                BackgroundColor3 = Config.Colors.Button
+            }):Play()
+        end
+        currentSection = section
+        section.Content.Visible = true
+        TweenService:Create(tabButton, TweenInfo.new(0.3), {
+            BackgroundColor3 = Config.Colors.ButtonHover
+        }):Play()
+    end)
+
+    table.insert(sections, section)
+    return section
+end
+
+-- Create All Sections
+local espSection = CreateSection("ESP", Config.Icons.ESP)
+local hitboxSection = CreateSection("Hitbox", Config.Icons.Hitbox)
+local movementSection = CreateSection("Movement", Config.Icons.Movement)
+local bombSection = CreateSection("Bomb", Config.Icons.Bomb)
+local settingsSection = CreateSection("Settings", Config.Icons.Settings)
+
+-- Create Interactive Elements
+local function CreateToggle(section, text, default, callback)
+    local toggle = Instance.new("Frame")
+    toggle.Size = UDim2.new(0.9, 0, 0, 40)
+    toggle.Position = UDim2.new(0.05, 0, 0, #section.Elements * 45)
+    toggle.BackgroundColor3 = Config.Colors.Button
+    toggle.Parent = section.Content
+    AddCorners(toggle)
+    AddStroke(toggle)
+
+    local toggleText = Instance.new("TextLabel")
+    toggleText.Size = UDim2.new(0.7, 0, 1, 0)
+    toggleText.Position = UDim2.new(0, 10, 0, 0)
+    toggleText.BackgroundTransparency = 1
+    toggleText.Text = text
+    toggleText.TextColor3 = Config.Colors.Text
+    toggleText.TextSize = 14
+    toggleText.Font = Enum.Font.GothamSemibold
+    toggleText.TextXAlignment = Enum.TextXAlignment.Left
+    toggleText.Parent = toggle
+
+    local toggleButton = Instance.new("Frame")
+    toggleButton.Size = UDim2.new(0, 40, 0, 20)
+    toggleButton.Position = UDim2.new(0.85, 0, 0.5, -10)
+    toggleButton.BackgroundColor3 = default and Config.Colors.Enabled or Config.Colors.Disabled
+    toggleButton.Parent = toggle
+    AddCorners(toggleButton, UDim.new(0, 10))
+
+    local toggleCircle = Instance.new("Frame")
+    toggleCircle.Size = UDim2.new(0, 16, 0, 16)
+    toggleCircle.Position = UDim2.new(default and 1 or 0, default and -18 or 2, 0.5, -8)
+    toggleCircle.BackgroundColor3 = Config.Colors.Text
+    toggleCircle.Parent = toggleButton
+    AddCorners(toggleCircle, UDim.new(1, 0))
+
+    local enabled = default
+    toggle.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            enabled = not enabled
+            TweenService:Create(toggleButton, TweenInfo.new(0.3), {
+                BackgroundColor3 = enabled and Config.Colors.Enabled or Config.Colors.Disabled
+            }):Play()
+            TweenService:Create(toggleCircle, TweenInfo.new(0.3), {
+                Position = enabled and UDim2.new(1, -18, 0.5, -8) or UDim2.new(0, 2, 0.5, -8)
+            }):Play()
+            callback(enabled)
+        end
+    end)
+
+    table.insert(section.Elements, toggle)
+    return toggle
+end
+
+local function CreateSlider(section, text, min, max, default, callback)
+    local slider = Instance.new("Frame")
+    slider.Size = UDim2.new(0.9, 0, 0, 60)
+    slider.Position = UDim2.new(0.05, 0, 0, #section.Elements * 65)
+    slider.BackgroundColor3 = Config.Colors.Button
+    slider.Parent = section.Content
+    AddCorners(slider)
+    AddStroke(slider)
+
+    local sliderText = Instance.new("TextLabel")
+    sliderText.Size = UDim2.new(0.7, 0, 0, 30)
+    sliderText.Position = UDim2.new(0, 10, 0, 0)
+    sliderText.BackgroundTransparency = 1
+    sliderText.Text = text
+    sliderText.TextColor3 = Config.Colors.Text
+    sliderText.TextSize = 14
+    sliderText.Font = Enum.Font.GothamSemibold
+    sliderText.TextXAlignment = Enum.TextXAlignment.Left
+    sliderText.Parent = slider
+
+    local valueText = Instance.new("TextLabel")
+    valueText.Size = UDim2.new(0.2, 0, 0, 30)
+    valueText.Position = UDim2.new(0.8, -10, 0, 0)
+    valueText.BackgroundTransparency = 1
+    valueText.Text = tostring(default)
+    valueText.TextColor3 = Config.Colors.Text
+    valueText.TextSize = 14
+    valueText.Font = Enum.Font.GothamSemibold
+    valueText.Parent = slider
+
+    -- Slider Bar and Functionality
+    local sliderBar = Instance.new("Frame")
+    sliderBar.Size = UDim2.new(0.9, 0, 0, 4)
+    sliderBar.Position = UDim2.new(0.05, 0, 0.7, 0)
+    sliderBar.BackgroundColor3 = Config.Colors.Section
+    sliderBar.Parent = slider
+    AddCorners(sliderBar, UDim.new(0, 2))
+
+    local sliderFill = Instance.new("Frame")
+    sliderFill.Size = UDim2.new((default - min)/(max - min), 0, 1, 0)
+    sliderFill.BackgroundColor3 = Config.Colors.Enabled
+    sliderFill.Parent = sliderBar
+    AddCorners(sliderFill, UDim.new(0, 2))
+
+    local sliderButton = Instance.new("TextButton")
+    sliderButton.Size = UDim2.new(0, 12, 0, 12)
+    sliderButton.Position = UDim2.new((default - min)/(max - min), -6, 0.5, -6)
+    sliderButton.BackgroundColor3 = Config.Colors.Text
+    sliderButton.Text = ""
+    sliderButton.Parent = sliderBar
+    AddCorners(sliderButton, UDim.new(1, 0))
+
+    local dragging = false
+    sliderButton.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            dragging = true
+        end
+    end)
+
+    UserInputService.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            dragging = false
+        end
+    end)
+
+    UserInputService.InputChanged:Connect(function(input)
+        if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+            local pos = math.clamp((input.Position.X - sliderBar.AbsolutePosition.X) / sliderBar.AbsoluteSize.X, 0, 1)
+            local value = math.floor(min + (max - min) * pos)
+            
+            TweenService:Create(sliderFill, TweenInfo.new(0.1), {
+                Size = UDim2.new(pos, 0, 1, 0)
+            }):Play()
+            
+            TweenService:Create(sliderButton, TweenInfo.new(0.1), {
+                Position = UDim2.new(pos, -6, 0.5, -6)
+            }):Play()
+            
+            valueText.Text = tostring(value)
+            callback(value)
+        end
+    end)
+
+    table.insert(section.Elements, slider)
+    return slider
+end
+
+-- Create ESP Features
+local espEnabled = CreateToggle(espSection, "Enable ESP", false, function(enabled)
+    Systems.ESP.Enabled = enabled
+end)
+
+local espBoxes = CreateToggle(espSection, "Show Boxes", true, function(enabled)
+    Systems.ESP.Settings.BoxEnabled = enabled
+end)
+
+local espHealth = CreateToggle(espSection, "Show Health", true, function(enabled)
+    Systems.ESP.Settings.ShowHealth = enabled
+end)
+
+local espDistance = CreateToggle(espSection, "Show Distance", true, function(enabled)
+    Systems.ESP.Settings.ShowDistance = enabled
+end)
+
+local espTeamCheck = CreateToggle(espSection, "Team Check", true, function(enabled)
+    Systems.ESP.Settings.TeamCheck = enabled
+end)
+
+-- Create Hitbox Features
+local hitboxEnabled = CreateToggle(hitboxSection, "Enable Hitbox", false, function(enabled)
+    Systems.Hitbox.Personal.Enabled = enabled
+end)
+
+local hitboxSize = CreateSlider(hitboxSection, "Hitbox Size", 2, 10, 2, function(value)
+    Systems.Hitbox.Personal.Size = value
+end)
+
+local hitboxVisible = CreateToggle(hitboxSection, "Hitbox Visible", false, function(enabled)
+    Systems.Hitbox.Personal.Visible = enabled
+end)
+
+-- Create Movement Features
+local speedEnabled = CreateToggle(movementSection, "Enable Speed", false, function(enabled)
+    Systems.Movement.Speed.Enabled = enabled
+end)
+
+local speedValue = CreateSlider(movementSection, "Speed Value", 16, 150, 16, function(value)
+    Systems.Movement.Speed.Value = value
+end)
+
+local jumpEnabled = CreateToggle(movementSection, "Enable Jump", false, function(enabled)
+    Systems.Movement.Jump.Enabled = enabled
+end)
+
+local jumpValue = CreateSlider(movementSection, "Jump Power", 50, 200, 50, function(value)
+    Systems.Movement.Jump.Value = value
+end)
+
+local flyEnabled = CreateToggle(movementSection, "Enable Fly", false, function(enabled)
+    Systems.Movement.Fly.Enabled = enabled
+    if enabled then
+        local bp = Instance.new("BodyPosition")
+        bp.Parent = player.Character.HumanoidRootPart
+        bp.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
+        bp.P = 10000
+        
+        RunService.RenderStepped:Connect(function()
+            if Systems.Movement.Fly.Enabled then
+                bp.Position = player.Character.HumanoidRootPart.Position +
+                    ((UserInputService:IsKeyDown(Enum.KeyCode.Space) and Vector3.new(0, 1, 0) or Vector3.new(0, 0, 0)) +
+                    (UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) and Vector3.new(0, -1, 0) or Vector3.new(0, 0, 0))) *
+                    Systems.Movement.Fly.Speed
+            else
+                bp:Destroy()
+            end
+        end)
+    end
+end)
+
+local flySpeed = CreateSlider(movementSection, "Fly Speed", 1, 100, 50, function(value)
+    Systems.Movement.Fly.Speed = value
+end)
+
+-- Create Bomb Detection Features
+local bombEnabled = CreateToggle(bombSection, "Enable Detection", true, function(enabled)
+    Systems.BombDetection.Enabled = enabled
+end)
+
+local bombRadius = CreateSlider(bombSection, "Detection Radius", 5, 30, 10, function(value)
+    Systems.BombDetection.Radius = value
+end)
+
+local autoPass = CreateToggle(bombSection, "Auto Pass", false, function(enabled)
+    Systems.BombDetection.AutoPass = enabled
+end)
+
+local passDelay = CreateSlider(bombSection, "Pass Delay", 0.1, 2, 0.5, function(value)
+    Systems.BombDetection.PassDelay = value
+end)
+
+-- Create Visual Indicator for Bomb Radius
+local function CreateBombRadius()
+    local radius = Instance.new("Part")
+    radius.Size = Vector3.new(1, 1, 1)
+    radius.Transparency = 0.8
+    radius.Color = Config.Colors.ESP.Bomb
+    radius.Material = Enum.Material.Neon
+    radius.Shape = Enum.PartType.Ball
+    radius.CanCollide = false
+    radius.Anchored = true
+    
+    RunService.RenderStepped:Connect(function()
+        if Systems.BombDetection.Enabled and player.Character then
+            radius.Size = Vector3.new(
+                Systems.BombDetection.Radius * 2,
+                Systems.BombDetection.Radius * 2,
+                Systems.BombDetection.Radius * 2
+            )
+            radius.Position = player.Character.HumanoidRootPart.Position
+            radius.Parent = workspace
+        else
+            radius.Parent = nil
+        end
+    end)
+end
+
+CreateBombRadius()
+
+-- Create Settings Features
+local performanceMode = CreateToggle(settingsSection, "Performance Mode", true, function(enabled)
+    Systems.Performance.Optimization = enabled
+end)
+
+local fpsCounter = Instance.new("TextLabel")
+fpsCounter.Size = UDim2.new(0, 100, 0, 20)
+fpsCounter.Position = UDim2.new(0.05, 0, 0.1, 0)
+fpsCounter.BackgroundTransparency = 1
+fpsCounter.TextColor3 = Config.Colors.Text
+fpsCounter.TextSize = 14
+fpsCounter.Font = Enum.Font.GothamSemibold
+fpsCounter.Parent = settingsSection.Content
+
+-- Performance Monitoring
+RunService.RenderStepped:Connect(function()
+    if Systems.Performance.Optimization then
+        fpsCounter.Text = "FPS: " .. tostring(math.floor(1/RunService.RenderStepped:Wait()))
+    end
+end)
+
+-- Create Save/Load System
+local function SaveSettings()
+    local data = {
+        ESP = {
+            Enabled = Systems.ESP.Enabled,
+            Settings = Systems.ESP.Settings
+        },
+        Hitbox = {
+            Personal = Systems.Hitbox.Personal,
+            Global = Systems.Hitbox.Global
+        },
+        Movement = {
+            Speed = Systems.Movement.Speed,
+            Jump = Systems.Movement.Jump,
+            Fly = Systems.Movement.Fly
+        },
+        BombDetection = Systems.BombDetection,
+        Performance = Systems.Performance
+    }
+    
+    writefile("PTBScript_Settings.json", HttpService:JSONEncode(data))
+end
+
+local function LoadSettings()
+    if isfile("PTBScript_Settings.json") then
+        local data = HttpService:JSONDecode(readfile("PTBScript_Settings.json"))
+        for key, value in pairs(data) do
+            Systems[key] = value
+        end
+    end
+end
+
+-- Create Reset Button
+local resetButton = Instance.new("TextButton")
+resetButton.Size = UDim2.new(0.9, 0, 0, 40)
+resetButton.Position = UDim2.new(0.05, 0, 0.8, 0)
+resetButton.BackgroundColor3 = Config.Colors.Button
+resetButton.Text = "Reset All Settings"
+resetButton.TextColor3 = Config.Colors.Text
+resetButton.TextSize = 14
+resetButton.Font = Enum.Font.GothamBold
+resetButton.Parent = settingsSection.Content
+AddCorners(resetButton)
+AddStroke(resetButton)
+
+resetButton.MouseButton1Click:Connect(function()
+    -- Reset all systems to default
+    Systems = {
+        ESP = {
+            Enabled = false,
+            Settings = {
+                ShowDistance = true,
+                ShowHealth = true,
+                TeamCheck = true,
+                BoxEnabled = true
+            }
+        },
+        Hitbox = {
+            Personal = {
+                Enabled = false,
+                Size = 2,
+                Visible = false
+            }
+        },
+        Movement = {
+            Speed = {
+                Enabled = false,
+                Value = 16
+            },
+            Jump = {
+                Enabled = false,
+                Value = 50
+            },
+            Fly = {
+                Enabled = false,
+                Speed = 50
+            }
+        },
+        BombDetection = {
+            Enabled = true,
+            Radius = 10,
+            AutoPass = false,
+            PassDelay = 0.5
+        }
+    }
+    SaveSettings()
+end)
+
+-- Button Functionality
+closeButton.MouseButton1Click:Connect(function()
+    gui:Destroy()
+    CleanupSystem()
+end)
+
+local minimized = false
+minimizeButton.MouseButton1Click:Connect(function()
+    minimized = not minimized
+    TweenService:Create(mainFrame, TweenInfo.new(0.5), {
+        Size = minimized and Config.GUI.MinimizedSize or Config.GUI.MainSize
+    }):Play()
+    contentContainer.Visible = not minimized
+    tabContainer.Visible = not minimized
+end)
+
+-- Dragging System
+local dragging = false
+local dragStart = nil
+local startPos = nil
+
+titleBar.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragging = true
+        dragStart = input.Position
+        startPos = mainFrame.Position
+    end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+    if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+        local delta = input.Position - dragStart
+        TweenService:Create(mainFrame, TweenInfo.new(0.1), {
+            Position = UDim2.new(
+                startPos.X.Scale,
+                startPos.X.Offset + delta.X,
+                startPos.Y.Scale,
+                startPos.Y.Offset + delta.Y
+            )
+        }):Play()
+    end
+end)
+
+UserInputService.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragging = false
+    end
+end)
+
+-- Hotkey System
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if not gameProcessed then
+        if input.KeyCode == Enum.KeyCode.RightAlt then
+            mainFrame.Visible = not mainFrame.Visible
+        elseif input.KeyCode == Enum.KeyCode.RightControl then
+            Systems.ESP.Enabled = not Systems.ESP.Enabled
+        elseif input.KeyCode == Enum.KeyCode.RightShift then
+            Systems.BombDetection.Enabled = not Systems.BombDetection.Enabled
+        end
+    end
+end)
+
+-- Initialize First Section
+if #sections > 0 then
+    sections[1].Button.MouseButton1Click:Fire()
+end
+
+-- Auto-Save Timer
+spawn(function()
+    while wait(30) do
+        SaveSettings()
+    end
+end)
+
+-- Cleanup System
+local function CleanupSystem()
+    for _, connection in pairs(connections) do
+        if connection.Connected then
+            connection:Disconnect()
+        end
+    end
+    SaveSettings()
+end
+
+-- Handle cleanup on script end
+game:BindToClose(function()
+    CleanupSystem()
+end)
+
+-- Final Notification
+local function CreateSuccessNotification()
+    CreateNotification("Script Loaded", "Pass The Bomb Ultimate is ready!", "success")
+end
+
+CreateSuccessNotification()
