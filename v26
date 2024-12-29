@@ -1,0 +1,212 @@
+if getgenv().EnhancedHBELoaded then return end
+getgenv().EnhancedHBELoaded = false
+
+if not game:IsLoaded() then
+    game.Loaded:Wait()
+end
+
+-- Direct Library Implementation
+local Library = {}
+Library.__index = Library
+
+function Library.new()
+    local window = {
+        Tabs = {},
+        Toggles = {},
+        Options = {}
+    }
+    return setmetatable(window, Library)
+end
+
+-- Services
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local TweenService = game:GetService("TweenService")
+local CoreGui = game:GetService("CoreGui")
+local LocalPlayer = Players.LocalPlayer
+local Camera = workspace.CurrentCamera
+
+-- Create UI
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "EnhancedHitboxSystem"
+ScreenGui.Parent = CoreGui
+
+local MainFrame = Instance.new("Frame")
+MainFrame.Name = "MainFrame"
+MainFrame.Size = UDim2.new(0, 300, 0, 350)
+MainFrame.Position = UDim2.new(0.5, -150, 0.5, -175)
+MainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+MainFrame.BorderSizePixel = 0
+MainFrame.Parent = ScreenGui
+
+-- Core Variables
+local Config = {
+    HitboxSize = Vector3.new(8, 8, 8),
+    HitboxTransparency = 0.5,
+    ESPEnabled = false,
+    TeamCheck = true,
+    TargetParts = {"Head", "HumanoidRootPart", "Torso"}
+}
+
+-- Hitbox Function
+local function ModifyHitbox(character, enabled)
+    if not character then return end
+    
+    for _, part in pairs(character:GetChildren()) do
+        if part:IsA("BasePart") and table.find(Config.TargetParts, part.Name) then
+            if enabled then
+                part.Size = Config.HitboxSize
+                part.Transparency = Config.HitboxTransparency
+                part.CanCollide = false
+            else
+                part.Size = part.OriginalSize or Vector3.new(2, 2, 1)
+                part.Transparency = 0
+                part.CanCollide = true
+            end
+        end
+    end
+end
+
+-- ESP System
+local ESPObjects = {}
+
+local function CreateESP(player)
+    local esp = Drawing.new("Text")
+    esp.Visible = false
+    esp.Center = true
+    esp.Outline = true
+    esp.Font = 2
+    esp.Size = 13
+    esp.Color = Color3.new(1, 1, 1)
+    ESPObjects[player] = esp
+    return esp
+end
+
+local function UpdateESP()
+    for player, esp in pairs(ESPObjects) do
+        if player and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+            local vector, onScreen = Camera:WorldToViewportPoint(player.Character.HumanoidRootPart.Position)
+            
+            if onScreen and Config.ESPEnabled then
+                esp.Position = Vector2.new(vector.X, vector.Y)
+                esp.Text = player.Name
+                esp.Visible = true
+            else
+                esp.Visible = false
+            end
+        else
+            esp.Visible = false
+        end
+    end
+end
+
+-- Main Update Loop
+local HitboxEnabled = false
+RunService.Heartbeat:Connect(function()
+    if HitboxEnabled then
+        for _, player in pairs(Players:GetPlayers()) do
+            if player ~= LocalPlayer and player.Character then
+                if Config.TeamCheck and player.Team == LocalPlayer.Team then continue end
+                ModifyHitbox(player.Character, true)
+            end
+        end
+    end
+    
+    if Config.ESPEnabled then
+        UpdateESP()
+    end
+end)
+
+-- Player Handling
+local function PlayerAdded(player)
+    if player ~= LocalPlayer then
+        CreateESP(player)
+        if player.Character then
+            ModifyHitbox(player.Character, HitboxEnabled)
+        end
+        player.CharacterAdded:Connect(function(character)
+            ModifyHitbox(character, HitboxEnabled)
+        end)
+    end
+end
+
+local function PlayerRemoving(player)
+    if ESPObjects[player] then
+        ESPObjects[player]:Remove()
+        ESPObjects[player] = nil
+    end
+end
+
+-- Initialize
+for _, player in ipairs(Players:GetPlayers()) do
+    PlayerAdded(player)
+end
+
+Players.PlayerAdded:Connect(PlayerAdded)
+Players.PlayerRemoving:Connect(PlayerRemoving)
+
+-- UI Controls
+local function CreateButton(text, position, callback)
+    local button = Instance.new("TextButton")
+    button.Size = UDim2.new(0, 120, 0, 30)
+    button.Position = position
+    button.Text = text
+    button.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+    button.TextColor3 = Color3.new(1, 1, 1)
+    button.Parent = MainFrame
+    button.MouseButton1Click:Connect(callback)
+    return button
+end
+
+CreateButton("Toggle Hitbox", UDim2.new(0, 10, 0, 10), function()
+    HitboxEnabled = not HitboxEnabled
+    for _, player in pairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer and player.Character then
+            ModifyHitbox(player.Character, HitboxEnabled)
+        end
+    end
+end)
+
+CreateButton("Toggle ESP", UDim2.new(0, 10, 0, 50), function()
+    Config.ESPEnabled = not Config.ESPEnabled
+end)
+
+-- Make UI Draggable
+local dragging
+local dragInput
+local dragStart
+local startPos
+
+local function UpdateDrag(input)
+    local delta = input.Position - dragStart
+    MainFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+end
+
+MainFrame.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragging = true
+        dragStart = input.Position
+        startPos = MainFrame.Position
+    end
+end)
+
+MainFrame.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragging = false
+    end
+end)
+
+MainFrame.InputChanged:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseMovement then
+        dragInput = input
+    end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+    if input == dragInput and dragging then
+        UpdateDrag(input)
+    end
+end)
+
+getgenv().EnhancedHBELoaded = true
