@@ -1,0 +1,228 @@
+if getgenv().EnhancedHBELoaded then return end
+getgenv().EnhancedHBELoaded = false
+
+if not game:IsLoaded() then
+    game.Loaded:Wait()
+end
+
+-- Services
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local TweenService = game:GetService("TweenService")
+local Teams = game:GetService("Teams")
+local LocalPlayer = Players.LocalPlayer
+local Camera = workspace.CurrentCamera
+
+-- Load Libraries
+local Library = loadstring(game:HttpGet('https://raw.githubusercontent.com/wally-rblx/LinoriaLib/main/Library.lua'))()
+local SaveManager = loadstring(game:HttpGet('https://raw.githubusercontent.com/wally-rblx/LinoriaLib/main/addons/SaveManager.lua'))()
+
+-- Window Setup
+local Window = Library:CreateWindow({
+    Title = 'Enhanced Hitbox System v2.0',
+    Center = true,
+    AutoShow = true,
+    TabPadding = 8
+})
+
+-- Create Tabs
+local Tabs = {
+    Main = Window:AddTab('Main'),
+    Combat = Window:AddTab('Combat'),
+    Visuals = Window:AddTab('Visuals'),
+    Settings = Window:AddTab('Settings')
+}
+
+-- Core Variables
+local Config = {
+    HitboxSize = Vector3.new(8, 8, 8),
+    HitboxTransparency = 0.5,
+    ESPEnabled = false,
+    TeamCheck = true,
+    TargetParts = {"Head", "HumanoidRootPart", "Torso"},
+    CustomColors = {
+        Enemy = Color3.fromRGB(255, 0, 0),
+        Team = Color3.fromRGB(0, 255, 0)
+    }
+}
+
+local PlayerData = {}
+local ESPObjects = {}
+local Connections = {}
+
+-- Combat Functions
+local function ModifyHitbox(character, enabled)
+    if not character then return end
+    
+    for _, part in pairs(character:GetChildren()) do
+        if part:IsA("BasePart") and table.find(Config.TargetParts, part.Name) then
+            if enabled then
+                part.Size = Config.HitboxSize
+                part.Transparency = Config.HitboxTransparency
+                part.CanCollide = false
+            else
+                part.Size = part.OriginalSize or Vector3.new(2, 2, 1)
+                part.Transparency = 0
+                part.CanCollide = true
+            end
+        end
+    end
+end
+
+-- ESP System
+local function CreateESPObject(player)
+    local esp = {
+        Name = Drawing.new("Text"),
+        Box = Drawing.new("Square"),
+        Tracer = Drawing.new("Line"),
+        Distance = Drawing.new("Text")
+    }
+    
+    esp.Name.Center = true
+    esp.Name.Outline = true
+    esp.Name.Size = 14
+    esp.Box.Thickness = 1
+    esp.Box.Filled = false
+    esp.Tracer.Thickness = 1
+    
+    ESPObjects[player] = esp
+    return esp
+end
+
+local function UpdateESP()
+    for player, esp in pairs(ESPObjects) do
+        if not player.Character or not player.Character:FindFirstChild("HumanoidRootPart") then
+            esp.Name.Visible = false
+            esp.Box.Visible = false
+            esp.Tracer.Visible = false
+            continue
+        end
+
+        local humanoidRootPart = player.Character.HumanoidRootPart
+        local vector, onScreen = Camera:WorldToViewportPoint(humanoidRootPart.Position)
+        
+        if onScreen and Config.ESPEnabled then
+            local distance = (LocalPlayer.Character.HumanoidRootPart.Position - humanoidRootPart.Position).Magnitude
+            local color = player.Team == LocalPlayer.Team and Config.CustomColors.Team or Config.CustomColors.Enemy
+            
+            esp.Name.Position = Vector2.new(vector.X, vector.Y - 40)
+            esp.Name.Text = string.format("%s\n[%d studs]", player.Name, distance)
+            esp.Name.Color = color
+            esp.Name.Visible = true
+            
+            -- Box ESP
+            local rootPos = player.Character.HumanoidRootPart.Position
+            local boxSize = Vector3.new(5, 6, 0)
+            local topLeft = Camera:WorldToViewportPoint(rootPos + Vector3.new(-2.5, 3, 0))
+            local bottomRight = Camera:WorldToViewportPoint(rootPos + Vector3.new(2.5, -3, 0))
+            
+            esp.Box.Position = Vector2.new(topLeft.X, topLeft.Y)
+            esp.Box.Size = Vector2.new(bottomRight.X - topLeft.X, bottomRight.Y - topLeft.Y)
+            esp.Box.Color = color
+            esp.Box.Visible = true
+            
+            -- Tracer
+            esp.Tracer.From = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y)
+            esp.Tracer.To = Vector2.new(vector.X, vector.Y)
+            esp.Tracer.Color = color
+            esp.Tracer.Visible = true
+        else
+            esp.Name.Visible = false
+            esp.Box.Visible = false
+            esp.Tracer.Visible = false
+        end
+    end
+end
+
+-- UI Controls
+local CombatSection = Tabs.Combat:AddLeftGroupbox('Hitbox Controls')
+local VisualsSection = Tabs.Visuals:AddLeftGroupbox('ESP Settings')
+local SettingsSection = Tabs.Settings:AddLeftGroupbox('Configuration')
+
+CombatSection:AddToggle('HitboxEnabled', {
+    Text = 'Enable Hitboxes',
+    Default = false,
+    Tooltip = 'Toggles hitbox modification'
+}):OnChanged(function(enabled)
+    for _, player in pairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer and player.Character then
+            ModifyHitbox(player.Character, enabled)
+        end
+    end
+end)
+
+CombatSection:AddSlider('HitboxSize', {
+    Text = 'Hitbox Size',
+    Default = 8,
+    Min = 2,
+    Max = 50,
+    Rounding = 1,
+    Compact = false
+}):OnChanged(function(value)
+    Config.HitboxSize = Vector3.new(value, value, value)
+end)
+
+VisualsSection:AddToggle('ESPEnabled', {
+    Text = 'Enable ESP',
+    Default = false,
+    Tooltip = 'Toggles ESP features'
+}):OnChanged(function(enabled)
+    Config.ESPEnabled = enabled
+end)
+
+-- Main Update Loop
+RunService.Heartbeat:Connect(function()
+    if Toggles.HitboxEnabled.Value then
+        for _, player in pairs(Players:GetPlayers()) do
+            if player ~= LocalPlayer and player.Character then
+                if Config.TeamCheck and player.Team == LocalPlayer.Team then continue end
+                ModifyHitbox(player.Character, true)
+            end
+        end
+    end
+    
+    if Config.ESPEnabled then
+        UpdateESP()
+    end
+end)
+
+-- Player Handling
+local function PlayerAdded(player)
+    if player ~= LocalPlayer then
+        CreateESPObject(player)
+        
+        player.CharacterAdded:Connect(function(character)
+            if Toggles.HitboxEnabled.Value then
+                ModifyHitbox(character, true)
+            end
+        end)
+    end
+end
+
+local function PlayerRemoving(player)
+    if ESPObjects[player] then
+        for _, drawing in pairs(ESPObjects[player]) do
+            drawing:Remove()
+        end
+        ESPObjects[player] = nil
+    end
+end
+
+-- Initialize
+for _, player in ipairs(Players:GetPlayers()) do
+    PlayerAdded(player)
+end
+
+Players.PlayerAdded:Connect(PlayerAdded)
+Players.PlayerRemoving:Connect(PlayerRemoving)
+
+-- Save/Load System
+SaveManager:SetLibrary(Library)
+SaveManager:SetFolder('EnhancedHitboxSystem')
+SaveManager:BuildConfigSection(Tabs.Settings)
+SaveManager:LoadAutoloadConfig()
+
+-- Final Setup
+Library:Notify('Enhanced Hitbox System Loaded Successfully!')
+getgenv().EnhancedHBELoaded = true
