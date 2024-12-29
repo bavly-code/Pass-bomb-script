@@ -1,0 +1,166 @@
+local TweenService = game:GetService("TweenService")
+local CoreGui = game:GetService("CoreGui")
+
+-- Create main GUI elements
+local ScreenGui = Instance.new("ScreenGui")
+local MainFrame = Instance.new("Frame")
+local TopBar = Instance.new("Frame")
+local Title = Instance.new("TextLabel")
+local CloseButton = Instance.new("TextButton")
+local MinimizeButton = Instance.new("TextButton")
+local TabContainer = Instance.new("Frame")
+local ContentContainer = Instance.new("Frame")
+
+-- GUI Setup
+ScreenGui.Name = "PassTheBombGUI"
+ScreenGui.Parent = CoreGui
+ScreenGui.ResetOnSpawn = false
+
+MainFrame.Name = "MainFrame"
+MainFrame.Size = UDim2.new(0, 600, 0, 350)
+MainFrame.Position = UDim2.new(0.5, -300, 0.5, -175)
+MainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+MainFrame.BorderSizePixel = 0
+MainFrame.Active = true
+MainFrame.Draggable = true
+MainFrame.Parent = ScreenGui
+
+TopBar.Name = "TopBar"
+TopBar.Size = UDim2.new(1, 0, 0, 30)
+TopBar.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+TopBar.BorderSizePixel = 0
+TopBar.Parent = MainFrame
+
+Title.Name = "Title"
+Title.Size = UDim2.new(0.5, 0, 1, 0)
+Title.Position = UDim2.new(0.25, 0, 0, 0)
+Title.BackgroundTransparency = 1
+Title.Text = "Pass The Bomb GUI"
+Title.TextColor3 = Color3.fromRGB(255, 255, 255)
+Title.TextSize = 18
+Title.Font = Enum.Font.GothamBold
+Title.Parent = TopBar
+
+CloseButton.Name = "CloseButton"
+CloseButton.Size = UDim2.new(0, 30, 0, 30)
+CloseButton.Position = UDim2.new(1, -30, 0, 0)
+CloseButton.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
+CloseButton.Text = "X"
+CloseButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+CloseButton.Font = Enum.Font.GothamBold
+CloseButton.Parent = TopBar
+
+MinimizeButton.Name = "MinimizeButton"
+MinimizeButton.Size = UDim2.new(0, 30, 0, 30)
+MinimizeButton.Position = UDim2.new(1, -60, 0, 0)
+MinimizeButton.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+MinimizeButton.Text = "-"
+MinimizeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+MinimizeButton.Font = Enum.Font.GothamBold
+MinimizeButton.Parent = TopBar
+
+TabContainer.Name = "TabContainer"
+TabContainer.Size = UDim2.new(0, 150, 1, -30)
+TabContainer.Position = UDim2.new(0, 0, 0, 30)
+TabContainer.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+TabContainer.BorderSizePixel = 0
+TabContainer.Parent = MainFrame
+
+ContentContainer.Name = "ContentContainer"
+ContentContainer.Size = UDim2.new(1, -150, 1, -30)
+ContentContainer.Position = UDim2.new(0, 150, 0, 30)
+ContentContainer.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+ContentContainer.BorderSizePixel = 0
+ContentContainer.Parent = MainFrame
+
+-- Create Tabs
+local function CreateTab(name)
+    local tab = Instance.new("TextButton")
+    tab.Size = UDim2.new(1, 0, 0, 35)
+    tab.Position = UDim2.new(0, 0, 0, #TabContainer:GetChildren() * 35)
+    tab.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+    tab.Text = name
+    tab.TextColor3 = Color3.fromRGB(255, 255, 255)
+    tab.Font = Enum.Font.GothamSemibold
+    tab.Parent = TabContainer
+    return tab
+end
+
+-- Create Content Pages
+local function CreatePage(name)
+    local page = Instance.new("Frame")
+    page.Name = name.."Page"
+    page.Size = UDim2.new(1, 0, 1, 0)
+    page.BackgroundTransparency = 1
+    page.Visible = false
+    page.Parent = ContentContainer
+    return page
+end
+
+-- Create Tabs and Pages
+local mainTab = CreateTab("Main")
+local mainPage = CreatePage("Main")
+local hitboxTab = CreateTab("Hitbox")
+local hitboxPage = CreatePage("Hitbox")
+local miscTab = CreateTab("Misc")
+local miscPage = CreatePage("Misc")
+
+-- Add Main Page Content
+local speedSlider = Instance.new("TextButton")
+speedSlider.Size = UDim2.new(0.8, 0, 0, 30)
+speedSlider.Position = UDim2.new(0.1, 0, 0.1, 0)
+speedSlider.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+speedSlider.Text = "Speed: 50"
+speedSlider.TextColor3 = Color3.fromRGB(255, 255, 255)
+speedSlider.Parent = mainPage
+
+local infiniteYieldBtn = Instance.new("TextButton")
+infiniteYieldBtn.Size = UDim2.new(0.8, 0, 0, 30)
+infiniteYieldBtn.Position = UDim2.new(0.1, 0, 0.2, 0)
+infiniteYieldBtn.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+infiniteYieldBtn.Text = "Load Infinite Yield"
+infiniteYieldBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+infiniteYieldBtn.Parent = mainPage
+
+-- Add Hitbox Page Content
+local hitboxSlider = Instance.new("TextButton")
+hitboxSlider.Size = UDim2.new(0.8, 0, 0, 30)
+hitboxSlider.Position = UDim2.new(0.1, 0, 0.1, 0)
+hitboxSlider.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+hitboxSlider.Text = "Hitbox Size: 2"
+hitboxSlider.TextColor3 = Color3.fromRGB(255, 255, 255)
+hitboxSlider.Parent = hitboxPage
+
+-- Button Functions
+CloseButton.MouseButton1Click:Connect(function()
+    ScreenGui:Destroy()
+end)
+
+local minimized = false
+MinimizeButton.MouseButton1Click:Connect(function()
+    minimized = not minimized
+    local targetSize = minimized and UDim2.new(0, 600, 0, 30) or UDim2.new(0, 600, 0, 350)
+    TweenService:Create(MainFrame, TweenInfo.new(0.3), {Size = targetSize}):Play()
+end)
+
+-- Tab Switching
+local function SwitchTab(page)
+    for _, v in pairs(ContentContainer:GetChildren()) do
+        v.Visible = (v == page)
+    end
+end
+
+mainTab.MouseButton1Click:Connect(function()
+    SwitchTab(mainPage)
+end)
+
+hitboxTab.MouseButton1Click:Connect(function()
+    SwitchTab(hitboxPage)
+end)
+
+miscTab.MouseButton1Click:Connect(function()
+    SwitchTab(miscPage)
+end)
+
+-- Initialize
+mainPage.Visible = true
