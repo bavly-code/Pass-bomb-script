@@ -1,0 +1,458 @@
+-- Services and Core Setup
+local Players = game:GetService("Players")
+local CoreGui = game:GetService("CoreGui")
+local TweenService = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+local HttpService = game:GetService("HttpService")
+local player = Players.LocalPlayer
+local mouse = player:GetMouse()
+
+-- Core Configuration and Systems
+local Config = {
+    GUI = {
+        Title = "Pass The Bomb Ultimate",
+        MainSize = UDim2.new(0, 600, 0, 450),
+        TitleBarHeight = 40,
+        CornerRadius = UDim.new(0, 8)
+    },
+    Colors = {
+        Background = Color3.fromRGB(25, 25, 25),
+        TitleBar = Color3.fromRGB(30, 30, 30),
+        Section = Color3.fromRGB(35, 35, 35),
+        Button = Color3.fromRGB(40, 40, 40),
+        ButtonHover = Color3.fromRGB(45, 45, 45),
+        Enabled = Color3.fromRGB(0, 255, 127),
+        Text = Color3.fromRGB(255, 255, 255),
+        Input = Color3.fromRGB(45, 45, 45),
+        ESP = {
+            Enemy = Color3.fromRGB(255, 0, 0),
+            Team = Color3.fromRGB(0, 255, 0),
+            Bomb = Color3.fromRGB(255, 165, 0)
+        }
+    }
+}
+
+local Systems = {
+    ESP = {
+        Enabled = false,
+        Players = {},
+        Settings = {
+            ShowDistance = true,
+            ShowHealth = true,
+            TeamCheck = true,
+            BoxEnabled = true,
+            NameEnabled = true,
+            SkeletonEnabled = false,
+            CustomColors = {
+                Enemy = Color3.fromRGB(255, 0, 0),
+                Team = Color3.fromRGB(0, 255, 0)
+            }
+        }
+    },
+    Hitbox = {
+        Personal = {
+            Enabled = false,
+            Size = 2,
+            Visible = false
+        },
+        Global = {
+            Enabled = false,
+            Size = 2,
+            Visible = false
+        }
+    },
+    Movement = {
+        Speed = {
+            Enabled = false,
+            Value = 16
+        },
+        Jump = {
+            Enabled = false,
+            Value = 50
+        },
+        Fly = {
+            Enabled = false,
+            Speed = 50
+        }
+    },
+    BombDetection = {
+        Enabled = true,
+        Radius = 10,
+        AutoPass = false,
+        PassDelay = 0.5,
+        WarningDistance = 15
+    },
+    Performance = {
+        FPS = 0,
+        Ping = 0,
+        Optimization = true
+    }
+}
+-- UI Creation and Core Functions
+local gui = Instance.new("ScreenGui")
+gui.Name = "PTBScript_" .. math.random(1000000,9999999)
+gui.ResetOnSpawn = false
+gui.Parent = CoreGui
+
+-- Main Frame and UI Elements
+local mainFrame = Instance.new("Frame")
+mainFrame.Size = Config.GUI.MainSize
+mainFrame.Position = UDim2.new(0.5, -300, 0.5, -225)
+mainFrame.BackgroundColor3 = Config.Colors.Background
+mainFrame.BorderSizePixel = 0
+mainFrame.Parent = gui
+
+local function AddCorners(instance)
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = Config.GUI.CornerRadius
+    corner.Parent = instance
+end
+AddCorners(mainFrame)
+
+-- Title Bar and Controls
+local titleBar = Instance.new("Frame")
+titleBar.Size = UDim2.new(1, 0, 0, Config.GUI.TitleBarHeight)
+titleBar.BackgroundColor3 = Config.Colors.TitleBar
+titleBar.BorderSizePixel = 0
+titleBar.Parent = mainFrame
+AddCorners(titleBar)
+
+local title = Instance.new("TextLabel")
+title.Size = UDim2.new(0.5, 0, 1, 0)
+title.Position = UDim2.new(0.25, 0, 0, 0)
+title.BackgroundTransparency = 1
+title.Text = Config.GUI.Title
+title.TextColor3 = Config.Colors.Text
+title.TextSize = 20
+title.Font = Enum.Font.GothamBold
+title.Parent = titleBar
+
+-- Container Creation
+local tabContainer = Instance.new("Frame")
+tabContainer.Size = UDim2.new(0, 150, 1, -Config.GUI.TitleBarHeight)
+tabContainer.Position = UDim2.new(0, 0, 0, Config.GUI.TitleBarHeight)
+tabContainer.BackgroundColor3 = Config.Colors.Section
+tabContainer.BorderSizePixel = 0
+tabContainer.Parent = mainFrame
+AddCorners(tabContainer)
+
+local contentContainer = Instance.new("Frame")
+contentContainer.Size = UDim2.new(1, -150, 1, -Config.GUI.TitleBarHeight)
+contentContainer.Position = UDim2.new(0, 150, 0, Config.GUI.TitleBarHeight)
+contentContainer.BackgroundColor3 = Config.Colors.Background
+contentContainer.BorderSizePixel = 0
+contentContainer.Parent = mainFrame
+AddCorners(contentContainer)
+
+-- Interactive Elements Creation
+local function CreateButton(parent, text, callback)
+    local button = Instance.new("TextButton")
+    button.Size = UDim2.new(0.9, 0, 0, 35)
+    button.Position = UDim2.new(0.05, 0, 0, #parent:GetChildren() * 40)
+    button.BackgroundColor3 = Config.Colors.Button
+    button.Text = text
+    button.TextColor3 = Config.Colors.Text
+    button.Font = Enum.Font.GothamSemibold
+    button.TextSize = 14
+    button.Parent = parent
+    AddCorners(button)
+
+    button.MouseEnter:Connect(function()
+        TweenService:Create(button, TweenInfo.new(0.3), {
+            BackgroundColor3 = Config.Colors.ButtonHover
+        }):Play()
+    end)
+
+    button.MouseLeave:Connect(function()
+        TweenService:Create(button, TweenInfo.new(0.3), {
+            BackgroundColor3 = Config.Colors.Button
+        }):Play()
+    end)
+
+    button.MouseButton1Click:Connect(callback)
+    return button
+end
+-- Core Systems and Handlers
+local function InitializeCoreSystems()
+    -- Hitbox System
+    local function UpdateHitboxes()
+        if Systems.Hitbox.Personal.Enabled then
+            local character = player.Character
+            if character then
+                for _, part in pairs(character:GetDescendants()) do
+                    if part:IsA("BasePart") then
+                        part.Size = Vector3.new(
+                            Systems.Hitbox.Personal.Size,
+                            Systems.Hitbox.Personal.Size,
+                            Systems.Hitbox.Personal.Size
+                        )
+                        part.Transparency = Systems.Hitbox.Personal.Visible and 0.5 or 0
+                    end
+                end
+            end
+        end
+    end
+
+    -- ESP System Implementation
+    local function CreateESPForPlayer(plr)
+        local esp = Drawing.new("Square")
+        esp.Thickness = 1
+        esp.Filled = false
+        esp.Transparency = 1
+        esp.Color = Systems.ESP.Settings.CustomColors.Enemy
+        Systems.ESP.Players[plr.Name] = esp
+        return esp
+    end
+
+    local function UpdateESP()
+        for _, plr in pairs(Players:GetPlayers()) do
+            if plr ~= player and Systems.ESP.Enabled then
+                local character = plr.Character
+                if character then
+                    local humanoid = character:FindFirstChild("Humanoid")
+                    local rootPart = character:FindFirstChild("HumanoidRootPart")
+                    if humanoid and rootPart then
+                        local esp = Systems.ESP.Players[plr.Name] or CreateESPForPlayer(plr)
+                        local vector, onScreen = workspace.CurrentCamera:WorldToViewportPoint(rootPart.Position)
+                        if onScreen then
+                            esp.Visible = true
+                            esp.Size = Vector2.new(2000 / vector.Z, 2500 / vector.Z)
+                            esp.Position = Vector2.new(vector.X - esp.Size.X / 2, vector.Y - esp.Size.Y / 2)
+                        else
+                            esp.Visible = false
+                        end
+                    end
+                end
+            end
+        end
+    end
+
+    -- Movement System
+    local function UpdateMovement()
+        local character = player.Character
+        if character then
+            local humanoid = character:FindFirstChild("Humanoid")
+            if humanoid then
+                if Systems.Movement.Speed.Enabled then
+                    humanoid.WalkSpeed = Systems.Movement.Speed.Value
+                end
+                if Systems.Movement.Jump.Enabled then
+                    humanoid.JumpPower = Systems.Movement.Jump.Value
+                end
+            end
+        end
+    end
+
+    -- Initialize All Systems
+    RunService.RenderStepped:Connect(function()
+        UpdateHitboxes()
+        UpdateESP()
+        UpdateMovement()
+    end)
+end
+-- Bomb Detection and Advanced Systems
+local function InitializeAdvancedSystems()
+    -- Notification System
+    local notificationQueue = {}
+    
+    local function CreateNotification(title, message, type)
+        local notif = Instance.new("Frame")
+        notif.Size = UDim2.new(0, 250, 0, 80)
+        notif.Position = UDim2.new(1, -260, 1, -90)
+        notif.BackgroundColor3 = Config.Colors.Section
+        notif.BorderSizePixel = 0
+        notif.Parent = gui
+        AddCorners(notif)
+
+        local titleLabel = Instance.new("TextLabel")
+        titleLabel.Size = UDim2.new(1, -20, 0, 25)
+        titleLabel.Position = UDim2.new(0, 10, 0, 5)
+        titleLabel.BackgroundTransparency = 1
+        titleLabel.Text = title
+        titleLabel.TextColor3 = Config.Colors.Text
+        titleLabel.TextSize = 16
+        titleLabel.Font = Enum.Font.GothamBold
+        titleLabel.Parent = notif
+
+        local messageLabel = Instance.new("TextLabel")
+        messageLabel.Size = UDim2.new(1, -20, 0, 40)
+        messageLabel.Position = UDim2.new(0, 10, 0, 35)
+        messageLabel.BackgroundTransparency = 1
+        messageLabel.Text = message
+        messageLabel.TextColor3 = Config.Colors.Text
+        messageLabel.TextSize = 14
+        messageLabel.Font = Enum.Font.Gotham
+        messageLabel.Parent = notif
+
+        table.insert(notificationQueue, notif)
+        
+        TweenService:Create(notif, TweenInfo.new(0.5), {
+            Position = UDim2.new(1, -260, 1, -90 - (#notificationQueue - 1) * 90)
+        }):Play()
+
+        wait(3)
+        
+        TweenService:Create(notif, TweenInfo.new(0.5), {
+            Position = UDim2.new(1.5, 0, notif.Position.Y.Scale, notif.Position.Y.Offset)
+        }):Play()
+        
+        wait(0.5)
+        notif:Destroy()
+        table.remove(notificationQueue, 1)
+        
+        for i, n in ipairs(notificationQueue) do
+            TweenService:Create(n, TweenInfo.new(0.5), {
+                Position = UDim2.new(1, -260, 1, -90 - (i-1) * 90)
+            }):Play()
+        end
+    end
+
+    -- Bomb Detection System
+    RunService.Heartbeat:Connect(function()
+        if Systems.BombDetection.Enabled then
+            local character = player.Character
+            if character and character:FindFirstChild("HumanoidRootPart") then
+                for _, obj in pairs(workspace:GetDescendants()) do
+                    if obj.Name:lower():match("bomb") then
+                        local distance = (character.HumanoidRootPart.Position - obj.Position).Magnitude
+                        if distance <= Systems.BombDetection.Radius then
+                            CreateNotification("Bomb Alert!", "Bomb detected " .. math.floor(distance) .. " studs away!", "warning")
+                            if Systems.BombDetection.AutoPass then
+                                -- Auto pass implementation
+                                wait(Systems.BombDetection.PassDelay)
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end)
+end
+-- Performance and Final Systems
+local function InitializeFinalSystems()
+    -- Performance Monitoring
+    local lastTick = tick()
+    local frameCount = 0
+    
+    RunService.RenderStepped:Connect(function()
+        frameCount += 1
+        local currentTick = tick()
+        if currentTick - lastTick >= 1 then
+            Systems.Performance.FPS = frameCount
+            frameCount = 0
+            lastTick = currentTick
+        end
+    end)
+
+    -- Dragging System
+    local dragging = false
+    local dragStart = nil
+    local startPos = nil
+
+    titleBar.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or 
+           input.UserInputType == Enum.UserInputType.Touch then
+            dragging = true
+            dragStart = input.Position
+            startPos = mainFrame.Position
+        end
+    end)
+
+    UserInputService.InputChanged:Connect(function(input)
+        if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or
+                        input.UserInputType == Enum.UserInputType.Touch) then
+            local delta = input.Position - dragStart
+            mainFrame.Position = UDim2.new(
+                startPos.X.Scale,
+                startPos.X.Offset + delta.X,
+                startPos.Y.Scale,
+                startPos.Y.Offset + delta.Y
+            )
+        end
+    end)
+
+    UserInputService.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or
+           input.UserInputType == Enum.UserInputType.Touch then
+            dragging = false
+        end
+    end)
+
+    -- Save/Load System
+    local function SaveSettings()
+        local data = {
+            ESP = Systems.ESP,
+            Hitbox = Systems.Hitbox,
+            Movement = Systems.Movement,
+            BombDetection = Systems.BombDetection
+        }
+        writefile("PTBScript_Settings.json", HttpService:JSONEncode(data))
+    end
+
+    local function LoadSettings()
+        if isfile("PTBScript_Settings.json") then
+            local data = HttpService:JSONDecode(readfile("PTBScript_Settings.json"))
+            for key, value in pairs(data) do
+                Systems[key] = value
+            end
+        end
+    end
+
+    -- Execute All Systems
+    LoadSettings()
+    InitializeCoreSystems()
+    InitializeAdvancedSystems()
+
+    -- Auto-save settings periodically
+    spawn(function()
+        while wait(30) do
+            SaveSettings()
+        end
+    end)
+end
+
+-- Final Execution
+InitializeFinalSystems()
+CreateNotification("Script Loaded", "Pass The Bomb Script is ready!", "info")
+-- Main Execution and Hotkeys
+local function ExecuteScript()
+    -- Hotkey System
+    UserInputService.InputBegan:Connect(function(input, gameProcessed)
+        if not gameProcessed then
+            if input.KeyCode == Enum.KeyCode.RightAlt then
+                mainFrame.Visible = not mainFrame.Visible
+            elseif input.KeyCode == Enum.KeyCode.RightControl then
+                Systems.ESP.Enabled = not Systems.ESP.Enabled
+            elseif input.KeyCode == Enum.KeyCode.RightShift then
+                Systems.BombDetection.Enabled = not Systems.BombDetection.Enabled
+            end
+        end
+    end)
+
+    -- Cleanup System
+    local function CleanupSystem()
+        for _, esp in pairs(Systems.ESP.Players) do
+            esp:Remove()
+        end
+        gui:Destroy()
+    end
+
+    -- Handle cleanup on script end
+    game:BindToClose(function()
+        SaveSettings()
+        CleanupSystem()
+    end)
+
+    -- Credits
+    local credits = {
+        Creator = "bavly-code",
+        GitHub = "https://github.com/bavly-code",
+        Version = "1.0.0"
+    }
+
+    return true
+end
+
+-- Execute the complete script
+ExecuteScript()
