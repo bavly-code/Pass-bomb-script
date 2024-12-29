@@ -1,0 +1,112 @@
+local UI = Instance.new("ScreenGui")
+local MainFrame = Instance.new("Frame")
+local Sidebar = Instance.new("Frame")
+local Title = Instance.new("TextLabel")
+local TabButtons = Instance.new("Frame")
+local HomeButton = Instance.new("TextButton")
+local MainButton = Instance.new("TextButton")
+local CreditsButton = Instance.new("TextButton")
+local Pages = Instance.new("Frame")
+local HomePage = Instance.new("Frame")
+local MainPage = Instance.new("Frame")
+local CreditsPage = Instance.new("Frame")
+
+-- GUI Setup
+UI.Name = "PassTheBombGUI"
+UI.Parent = game:GetService("CoreGui")
+UI.ResetOnSpawn = false
+
+MainFrame.Name = "MainFrame"
+MainFrame.Parent = UI
+MainFrame.BackgroundColor3 = Color3.fromRGB(18, 18, 18)
+MainFrame.Position = UDim2.new(0.2, 0, 0.2, 0)
+MainFrame.Size = UDim2.new(0, 500, 0, 300)
+MainFrame.Active = true
+MainFrame.Draggable = true
+
+-- Create Toggle Button
+local ToggleButton = Instance.new("TextButton")
+ToggleButton.Parent = MainPage
+ToggleButton.BackgroundColor3 = Color3.fromRGB(136, 0, 255)
+ToggleButton.Position = UDim2.new(0.1, 0, 0.2, 0)
+ToggleButton.Size = UDim2.new(0, 200, 0, 50)
+ToggleButton.Text = "Toggle Script"
+ToggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+
+-- Create Infinite Yield Button
+local IYButton = Instance.new("TextButton")
+IYButton.Parent = MainPage
+IYButton.BackgroundColor3 = Color3.fromRGB(136, 0, 255)
+IYButton.Position = UDim2.new(0.1, 0, 0.4, 0)
+IYButton.Size = UDim2.new(0, 200, 0, 50)
+IYButton.Text = "Load Infinite Yield"
+IYButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+
+-- Toggle Script Function
+local enabled = false
+ToggleButton.MouseButton1Click:Connect(function()
+    enabled = not enabled
+    if enabled then
+        ToggleButton.BackgroundColor3 = Color3.fromRGB(0, 255, 0)
+        game.StarterGui:SetCore("SendNotification", {
+            Title = "Script Enabled",
+            Text = "Pass The Bomb script is now running",
+            Duration = 2
+        })
+        
+        -- Your existing script functionality here
+        local function onCharacterAdded(character)
+            local humanoid = character:WaitForChild("Humanoid")
+            humanoid.WalkSpeed = 50
+        end
+        
+        game.Players.LocalPlayer.CharacterAdded:Connect(onCharacterAdded)
+        if game.Players.LocalPlayer.Character then
+            onCharacterAdded(game.Players.LocalPlayer.Character)
+        end
+    else
+        ToggleButton.BackgroundColor3 = Color3.fromRGB(136, 0, 255)
+        game.StarterGui:SetCore("SendNotification", {
+            Title = "Script Disabled",
+            Text = "Pass The Bomb script is now off",
+            Duration = 2
+        })
+        
+        -- Reset functionality
+        if game.Players.LocalPlayer.Character then
+            game.Players.LocalPlayer.Character.Humanoid.WalkSpeed = 16
+        end
+    end
+end)
+
+-- Infinite Yield Button
+IYButton.MouseButton1Click:Connect(function()
+    loadstring(game:HttpGet('https://raw.githubusercontent.com/EdgeIY/infiniteyield/master/source'))()
+    game.StarterGui:SetCore("SendNotification", {
+        Title = "Infinite Yield",
+        Text = "Infinite Yield has been loaded!",
+        Duration = 2
+    })
+end)
+
+-- Tab System
+local function switchTab(tabName)
+    HomePage.Visible = tabName == "Home"
+    MainPage.Visible = tabName == "Main"
+    CreditsPage.Visible = tabName == "Credits"
+end
+
+HomeButton.MouseButton1Click:Connect(function()
+    switchTab("Home")
+end)
+
+MainButton.MouseButton1Click:Connect(function()
+    switchTab("Main")
+end)
+
+CreditsButton.MouseButton1Click:Connect(function()
+    switchTab("Credits")
+end)
+
+-- Initial Setup
+switchTab("Home")
