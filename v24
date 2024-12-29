@@ -1,0 +1,378 @@
+if getgenv().EnhancedHBELoaded ~= nil then
+    return
+end
+
+getgenv().EnhancedHBELoaded = false
+
+-- Core Dependencies
+if not game:IsLoaded() then
+    game.Loaded:Wait()
+end
+
+if not getgenv().MTAPIMutex then
+    loadstring(game:HttpGet("https://raw.githubusercontent.com/RectangularObject/MT-Api-v2/main/__source/mt-api%20v2.lua", true))()
+end
+
+local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/RectangularObject/LinoriaLib/main/Library.lua"))()
+local SaveManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/RectangularObject/LinoriaLib/main/addons/SaveManager.lua"))()
+
+-- Services
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local TweenService = game:GetService("TweenService")
+local Teams = game:GetService("Teams")
+local Workspace = game:GetService("Workspace")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+-- Core Variables
+local LocalPlayer = Players.LocalPlayer
+local Camera = workspace.CurrentCamera
+local PlayerData = {}
+local VisualsData = {}
+local BombData = {
+    LastCheck = 0,
+    Status = "None",
+    Location = nil
+}
+
+-- Enhanced UI Setup
+local MainWindow = Library:CreateWindow("Enhanced Hitbox System v2.0")
+SaveManager:SetLibrary(Library)
+SaveManager:SetFolder("EnhancedHBE")
+
+-- Core Tabs
+local MainTab = MainWindow:AddTab("Main")
+local HitboxTab = MainWindow:AddTab("Hitbox")
+local VisualsTab = MainWindow:AddTab("Visuals")
+local SettingsTab = MainWindow:AddTab("Settings")
+local TroubleshootTab = MainWindow:AddTab("Troubleshoot")
+-- Enhanced Configuration System
+local Config = {
+    Hitbox = {
+        Enabled = false,
+        Size = Vector3.new(10, 10, 10),
+        Transparency = 0.5,
+        CustomParts = {},
+        TeamCheck = true,
+        IgnoreList = {},
+        Visualizer = true,
+        CollisionMode = "Disabled"
+    },
+    ESP = {
+        Enabled = false,
+        ShowName = true,
+        ShowDistance = true,
+        ShowHealth = true,
+        TeamColor = true,
+        BoxESP = true,
+        TracerESP = false,
+        ChamsEnabled = false,
+        TextSize = 14,
+        TextFont = 2,
+        MaxDistance = 1000,
+        RefreshRate = 10
+    },
+    Performance = {
+        OptimizeRendering = true,
+        SmartUpdate = true,
+        UpdateRate = 0.03
+    }
+}
+
+-- Enhanced Hitbox Controls
+local HitboxSection = HitboxTab:AddLeftGroupbox("Hitbox Controls")
+HitboxSection:AddToggle("HitboxEnabled", {Text = "Enable Hitbox", Default = false})
+    :AddKeyPicker("HitboxToggleKey", {Text = "Toggle Key", Default = "End"})
+HitboxSection:AddSlider("HitboxSize", {Text = "Size", Min = 1, Max = 100, Default = 10, Rounding = 1})
+HitboxSection:AddSlider("HitboxTransparency", {Text = "Transparency", Min = 0, Max = 1, Default = 0.5, Rounding = 2})
+HitboxSection:AddDropdown("TargetParts", {
+    Text = "Target Parts",
+    Multi = true,
+    Values = {"Head", "HumanoidRootPart", "Torso", "Left Arm", "Right Arm", "Left Leg", "Right Leg"},
+    Default = {"Head", "HumanoidRootPart"}
+})
+
+-- Advanced Hitbox Features
+local AdvancedSection = HitboxTab:AddRightGroupbox("Advanced Features")
+AdvancedSection:AddToggle("TeamCheck", {Text = "Team Check", Default = true})
+AdvancedSection:AddToggle("VisualizeHitbox", {Text = "Visualize Hitbox", Default = false})
+AdvancedSection:AddDropdown("CollisionMode", {
+    Text = "Collision Mode",
+    Values = {"Disabled", "Smart", "Always"},
+    Default = "Disabled"
+})
+-- Enhanced ESP System
+local VisualsSection = VisualsTab:AddLeftGroupbox("ESP Settings")
+VisualsSection:AddToggle("ESPEnabled", {Text = "Enable ESP", Default = false})
+    :AddKeyPicker("ESPToggleKey", {Text = "Toggle Key", Default = "RightAlt"})
+
+-- ESP Features
+VisualsSection:AddToggle("ShowNames", {Text = "Show Names", Default = true})
+    :AddColorPicker("NameColor", {Default = Color3.fromRGB(255, 255, 255)})
+VisualsSection:AddToggle("ShowDistance", {Text = "Show Distance", Default = true})
+VisualsSection:AddToggle("ShowHealth", {Text = "Show Health", Default = true})
+VisualsSection:AddToggle("UseTeamColor", {Text = "Use Team Colors", Default = true})
+
+-- Chams System
+local ChamsSection = VisualsTab:AddRightGroupbox("Chams")
+ChamsSection:AddToggle("ChamsEnabled", {Text = "Enable Chams", Default = false})
+    :AddColorPicker("ChamsFillColor", {Default = Color3.fromRGB(255, 0, 0)})
+    :AddColorPicker("ChamsOutlineColor", {Default = Color3.fromRGB(0, 0, 0)})
+ChamsSection:AddSlider("ChamsFillTransparency", {Text = "Fill Transparency", Min = 0, Max = 1, Default = 0.5, Rounding = 2})
+ChamsSection:AddSlider("ChamsOutlineTransparency", {Text = "Outline Transparency", Min = 0, Max = 1, Default = 0, Rounding = 2})
+
+-- Position Memory System
+local PositionSection = MainTab:AddLeftGroupbox("Position Memory")
+PositionSection:AddButton("Save Position", function()
+    SaveCurrentPosition()
+end)
+PositionSection:AddButton("Load Position", function()
+    LoadSavedPosition()
+end)
+
+-- Enhanced Drawing Functions
+local DrawingObjects = {}
+
+function CreateESPObject(player)
+    local espData = {
+        Name = Drawing.new("Text"),
+        Box = Drawing.new("Square"),
+        BoxOutline = Drawing.new("Square"),
+        HealthBar = Drawing.new("Square"),
+        HealthBarOutline = Drawing.new("Square"),
+        Tracer = Drawing.new("Line")
+    }
+    
+    -- Configure ESP objects
+    espData.Name.Center = true
+    espData.Name.Outline = true
+    espData.Name.Size = 14
+    espData.Box.Thickness = 1
+    espData.Box.Filled = false
+    espData.BoxOutline.Thickness = 3
+    espData.BoxOutline.Filled = false
+    
+    DrawingObjects[player] = espData
+    return espData
+end
+-- Enhanced Player Handling
+local function InitializePlayer(player)
+    if player == LocalPlayer then return end
+    
+    PlayerData[player] = {
+        ESP = CreateESPObject(player),
+        Hitbox = {},
+        LastUpdate = tick(),
+        Status = "Unknown",
+        Connections = {},
+        Properties = {
+            IsVisible = false,
+            Distance = 0,
+            Health = 100,
+            TeamColor = player.TeamColor
+        }
+    }
+
+    -- Smart Character Handling
+    local function OnCharacterAdded(character)
+        if not character then return end
+        
+        local humanoid = character:WaitForChild("Humanoid", 5)
+        local rootPart = character:WaitForChild("HumanoidRootPart", 5)
+        
+        if not humanoid or not rootPart then return end
+        
+        -- Initialize Hitbox
+        for _, part in pairs(character:GetChildren()) do
+            if part:IsA("BasePart") and IsTargetPart(part.Name) then
+                ApplyHitbox(part)
+            end
+        end
+        
+        -- Setup Connections
+        PlayerData[player].Connections["Died"] = humanoid.Died:Connect(function()
+            UpdatePlayerState(player, "Dead")
+        end)
+        
+        PlayerData[player].Connections["HealthChanged"] = humanoid.HealthChanged:Connect(function(health)
+            PlayerData[player].Properties.Health = health
+        end)
+    end
+
+    PlayerData[player].Connections["CharacterAdded"] = player.CharacterAdded:Connect(OnCharacterAdded)
+    if player.Character then OnCharacterAdded(player.Character) end
+end
+
+-- Bomb Detection System
+local BombSection = MainTab:AddRightGroupbox("Bomb Status")
+local function UpdateBombStatus()
+    local currentTime = tick()
+    if currentTime - BombData.LastCheck < 1 then return end
+    
+    BombData.LastCheck = currentTime
+    local bombObject = FindBombObject() -- Game-specific implementation
+    
+    if bombObject then
+        BombData.Status = GetBombState(bombObject)
+        BombData.Location = bombObject.Position
+        
+        if BombData.Status ~= "None" then
+            Library:Notify("Bomb Status: " .. BombData.Status, 3)
+        end
+    end
+end
+
+-- Performance Monitoring
+local PerformanceSection = SettingsTab:AddRightGroupbox("Performance")
+local function MonitorPerformance()
+    local stats = {
+        FPS = 0,
+        Memory = 0,
+        NetworkPing = 0
+    }
+    
+    return stats
+end
+-- Main Update Loop with Performance Optimization
+RunService.Heartbeat:Connect(function(deltaTime)
+    if not Config.Hitbox.Enabled and not Config.ESP.Enabled then return end
+    
+    local currentTime = tick()
+    for player, data in pairs(PlayerData) do
+        if not player.Character or currentTime - data.LastUpdate < Config.Performance.UpdateRate then
+            continue
+        end
+        
+        data.LastUpdate = currentTime
+        
+        -- Update Player Data
+        if player.Character then
+            data.Properties.Distance = (LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")) and 
+                (LocalPlayer.Character.HumanoidRootPart.Position - player.Character:FindFirstChild("HumanoidRootPart").Position).Magnitude or 0
+            
+            data.Properties.IsVisible = IsPlayerVisible(player)
+            UpdatePlayerHitbox(player)
+            UpdatePlayerESP(player)
+        end
+    end
+    
+    -- Update Bomb Status
+    UpdateBombStatus()
+end)
+
+-- Enhanced Cleanup System
+local function CleanupPlayer(player)
+    local data = PlayerData[player]
+    if not data then return end
+    
+    -- Cleanup ESP
+    for _, object in pairs(data.ESP) do
+        if typeof(object) == "table" and object.Remove then
+            object:Remove()
+        end
+    end
+    
+    -- Cleanup Hitbox
+    ResetHitbox(player)
+    
+    -- Cleanup Connections
+    for _, connection in pairs(data.Connections) do
+        if typeof(connection) == "RBXScriptConnection" then
+            connection:Disconnect()
+        end
+    end
+    
+    PlayerData[player] = nil
+end
+
+-- Initialize Existing Players
+for _, player in ipairs(Players:GetPlayers()) do
+    task.spawn(InitializePlayer, player)
+end
+
+-- Player Handling Events
+Players.PlayerAdded:Connect(InitializePlayer)
+Players.PlayerRemoving:Connect(CleanupPlayer)
+
+-- Save Manager Setup
+SaveManager:SetIgnoreIndexes({"PlayerData", "DrawingObjects"})
+SaveManager:BuildConfigSection(SettingsTab)
+SaveManager:LoadAutoloadConfig()
+
+-- Final Initialization
+getgenv().EnhancedHBELoaded = true
+Library:Notify("Enhanced Hitbox System Loaded Successfully!", 3)
+-- Utility Functions
+local function IsTargetPart(partName)
+    local targetParts = Toggles.TargetParts.Value
+    return table.find(targetParts, partName) ~= nil
+end
+
+local function IsPlayerVisible(player)
+    if not player.Character then return false end
+    local head = player.Character:FindFirstChild("Head")
+    if not head then return false end
+    
+    local ray = Ray.new(Camera.CFrame.Position, (head.Position - Camera.CFrame.Position).Unit * 1000)
+    local hit = workspace:FindPartOnRayWithIgnoreList(ray, {LocalPlayer.Character, Camera})
+    return hit and hit:IsDescendantOf(player.Character)
+end
+
+-- Game-Specific Implementations
+local GameSpecific = {
+    ["Universal"] = {
+        FindBombObject = function()
+            -- Universal bomb detection logic
+            return workspace:FindFirstChild("Bomb") or workspace:FindFirstChild("C4")
+        end,
+        GetBombState = function(bomb)
+            return bomb and "Active" or "None"
+        end
+    },
+    [1234567] = { -- Example game ID
+        FindBombObject = function()
+            -- Game-specific bomb detection
+            return workspace.GameObjects.Bomb
+        end
+    }
+}
+
+-- Enhanced Error Handling
+local function SafeCallback(callback, ...)
+    local success, result = pcall(callback, ...)
+    if not success then
+        Library:Notify("Error: " .. tostring(result), 3)
+        return nil
+    end
+    return result
+end
+
+-- Performance Optimization
+local function OptimizeRendering()
+    if Config.Performance.OptimizeRendering then
+        settings().Rendering.QualityLevel = 1
+        game:GetService("RunService"):Set3dRenderingEnabled(true)
+    end
+end
+
+-- Keybind Handler
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if not gameProcessed then
+        if input.KeyCode == Enum.KeyCode[Options.HitboxToggleKey.Value] then
+            Toggles.HitboxEnabled:SetValue(not Toggles.HitboxEnabled.Value)
+        elseif input.KeyCode == Enum.KeyCode[Options.ESPToggleKey.Value] then
+            Toggles.ESPEnabled:SetValue(not Toggles.ESPEnabled.Value)
+        end
+    end
+end)
+
+-- Initialize Game-Specific Features
+local gameId = game.GameId
+local currentGame = GameSpecific[gameId] or GameSpecific["Universal"]
+FindBombObject = currentGame.FindBombObject
+GetBombState = currentGame.GetBombState
+
+-- Final Optimizations
+OptimizeRendering()
+Library:Notify("All systems initialized and optimized!", 3)
