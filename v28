@@ -1,0 +1,123 @@
+-- Services
+local TweenService = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
+
+-- GUI Elements
+local UI = Instance.new("ScreenGui")
+local MainFrame = Instance.new("Frame")
+local TopBar = Instance.new("Frame")
+local MinimizeBtn = Instance.new("TextButton")
+local CloseBtn = Instance.new("TextButton")
+local Title = Instance.new("TextLabel")
+local Tabs = Instance.new("Frame")
+local Content = Instance.new("Frame")
+
+-- Create the main GUI structure
+UI.Name = "EnhancedPTB"
+UI.Parent = game:GetService("CoreGui")
+
+MainFrame.Name = "MainFrame"
+MainFrame.Size = UDim2.new(0, 600, 0, 400)
+MainFrame.Position = UDim2.new(0.5, -300, 0.5, -200)
+MainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+MainFrame.Active = true
+MainFrame.Draggable = true
+MainFrame.Parent = UI
+
+-- Create sections
+local function createSection(name, position)
+    local section = Instance.new("Frame")
+    section.Name = name
+    section.Size = UDim2.new(0.3, 0, 0.9, 0)
+    section.Position = position
+    section.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+    section.Parent = Content
+    
+    local title = Instance.new("TextLabel")
+    title.Text = name
+    title.Size = UDim2.new(1, 0, 0.1, 0)
+    title.BackgroundTransparency = 1
+    title.TextColor3 = Color3.fromRGB(255, 255, 255)
+    title.Parent = section
+    
+    return section
+end
+
+-- Create sliders
+local function createSlider(parent, name, min, max, default)
+    local sliderFrame = Instance.new("Frame")
+    local slider = Instance.new("TextButton")
+    local valueLabel = Instance.new("TextLabel")
+    
+    -- Slider functionality here
+    slider.MouseButton1Down:Connect(function()
+        -- Slider drag logic
+    end)
+    
+    return sliderFrame
+end
+
+-- Create input boxes
+local function createInput(parent, name, default)
+    local inputFrame = Instance.new("Frame")
+    local textBox = Instance.new("TextBox")
+    
+    textBox.Text = default
+    textBox.FocusLost:Connect(function()
+        -- Input validation logic
+    end)
+    
+    return inputFrame
+end
+
+-- Create hitbox controls
+local function createHitboxControls(parent)
+    local hitboxFrame = Instance.new("Frame")
+    
+    -- Personal hitbox slider
+    createSlider(hitboxFrame, "Personal Hitbox", 1, 10, 2)
+    
+    -- Hitbox expander toggle
+    local expanderToggle = Instance.new("TextButton")
+    expanderToggle.Text = "Hitbox Expander"
+    expanderToggle.MouseButton1Click:Connect(function()
+        -- Hitbox expansion logic
+    end)
+    
+    return hitboxFrame
+end
+
+-- Add minimize/close functionality
+MinimizeBtn.MouseButton1Click:Connect(function()
+    local goal = {Size = UDim2.new(0, 600, 0, 30)}
+    local tween = TweenService:Create(MainFrame, TweenInfo.new(0.3), goal)
+    tween:Play()
+end)
+
+CloseBtn.MouseButton1Click:Connect(function()
+    UI:Destroy()
+end)
+
+-- Create main sections
+local movementSection = createSection("Movement", UDim2.new(0, 10, 0.05, 0))
+local combatSection = createSection("Combat", UDim2.new(0.35, 0, 0.05, 0))
+local miscSection = createSection("Misc", UDim2.new(0.7, 0, 0.05, 0))
+
+-- Add features to sections
+-- Movement
+createSlider(movementSection, "Walk Speed", 16, 100, 50)
+createSlider(movementSection, "Jump Power", 50, 200, 100)
+
+-- Combat
+createHitboxControls(combatSection)
+
+-- Misc
+createInput(miscSection, "Teleport Player", "Enter Username")
+
+-- Initialize the GUI
+local function init()
+    -- Set up initial states
+    MainFrame.Visible = true
+end
+
+init()
