@@ -1,0 +1,288 @@
+local OrionLib = loadstring(game:HttpGet(('https://raw.githubusercontent.com/shlexware/Orion/main/source')))()
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local TweenService = game:GetService("TweenService")
+local LocalPlayer = Players.LocalPlayer
+local Camera = workspace.CurrentCamera
+
+getgenv().Settings = {
+    ESP = {
+        Enabled = false,
+        BoxESP = false,
+        ChamsESP = false,
+        TeamCheck = false,
+        ShowDistance = false,
+        ShowNames = false,
+        BoxColor = Color3.fromRGB(255,0,0),
+        ChamsColor = Color3.fromRGB(255,0,0),
+        FillTransparency = 0.5,
+        OutlineTransparency = 0
+    },
+    Hitbox = {
+        Size = Vector3.new(10, 10, 10),
+        Transparency = 0.7,
+        Enabled = false,
+        TeamCheck = false,
+        RemoveSelf = false,
+        AlternativeMethod = false
+    },
+    Movement = {
+        WalkSpeed = 16,
+        JumpPower = 50,
+        TPWalk = {
+            Enabled = false,
+            Speed = 3
+        },
+        Noclip = false,
+        InfiniteJump = false,
+        LoopWS = false,
+        AntiSlip = false
+    },
+    AutoPass = {
+        Enabled = false,
+        SmoothTP = true,
+        ReturnToSpawn = true,
+        PassDelay = 0.05  -- Made faster
+    }
+}
+
+-- Create Window
+local Window = OrionLib:MakeWindow({
+    Name = "Pass The Bomb v1.2.11",
+    HidePremium = false,
+    SaveConfig = true,
+    ConfigFolder = "PTBConfig",
+    IntroEnabled = true,
+    IntroText = "Pass The Bomb v1.2.11"
+})
+
+-- ESP System Implementation
+local ESPFolder = Instance.new("Folder")
+ESPFolder.Name = "ESPFolder"
+ESPFolder.Parent = game.CoreGui
+
+local function CreateESPBox(player)
+    local box = Drawing.new("Square")
+    box.Visible = false
+    box.Color = Settings.ESP.BoxColor
+    box.Thickness = 1
+    box.Transparency = 1
+    box.Filled = false
+    
+    local name = Drawing.new("Text")
+    name.Visible = false
+    name.Color = Settings.ESP.BoxColor
+    name.Size = 16
+    name.Center = true
+    name.Outline = true
+    
+    local distance = Drawing.new("Text")
+    distance.Visible = false
+    distance.Color = Settings.ESP.BoxColor
+    distance.Size = 14
+    distance.Center = true
+    distance.Outline = true
+    
+    return {
+        Box = box,
+        Name = name,
+        Distance = distance,
+        Player = player
+    }
+end
+
+local function UpdateESP()
+    for _, esp in pairs(ESPFolder:GetChildren()) do
+        local player = esp.Player.Value
+        if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+            local hrp = player.Character.HumanoidRootPart
+            local vector, onScreen = Camera:WorldToViewportPoint(hrp.Position)
+            
+            if onScreen and Settings.ESP.Enabled then
+                -- Update ESP elements
+                local headPos = player.Character.Head.Position
+                local rootPos = hrp.Position
+                local distance = (LocalPlayer.Character.HumanoidRootPart.Position - rootPos).Magnitude
+                
+                esp.Box.Visible = Settings.ESP.BoxESP
+                esp.Name.Visible = Settings.ESP.ShowNames
+                esp.Distance.Visible = Settings.ESP.ShowDistance
+                
+                -- Update positions and sizes
+            end
+        end
+    end
+end
+
+-- Hitbox System
+local function UpdateHitboxes()
+    for _, player in pairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer or not Settings.Hitbox.RemoveSelf then
+            if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+                local hrp = player.Character.HumanoidRootPart
+                if Settings.Hitbox.Enabled then
+                    hrp.Size = Settings.Hitbox.Size
+                    hrp.Transparency = Settings.Hitbox.Transparency
+                    hrp.CanCollide = false
+                end
+                
+                if Settings.Hitbox.AlternativeMethod then
+                    -- Alternative hitbox method for Pass The Bomb
+                    local touchPart = Instance.new("Part")
+                    touchPart.Size = Vector3.new(15, 15, 15)
+                    touchPart.Transparency = 1
+                    touchPart.CanCollide = false
+                    touchPart.CFrame = hrp.CFrame
+                    touchPart.Parent = hrp
+                    
+                    local weld = Instance.new("WeldConstraint")
+                    weld.Part0 = touchPart
+                    weld.Part1 = hrp
+                    weld.Parent = touchPart
+                end
+            end
+        end
+    end
+end
+
+-- Anti-Slip System
+local function ApplyAntiSlip()
+    if Settings.Movement.AntiSlip and LocalPlayer.Character then
+        local humanoid = LocalPlayer.Character:FindFirstChild("Humanoid")
+        if humanoid then
+            humanoid.MaxSlopeAngle = 89
+            humanoid.WalkSpeed = Settings.Movement.WalkSpeed
+            
+            -- Remove default movement physics
+            for _, part in pairs(LocalPlayer.Character:GetDescendants()) do
+                if part:IsA("BasePart") then
+                    part.CustomPhysicalProperties = PhysicalProperties.new(0, 0, 0, 0, 0)
+                end
+            end
+        end
+    end
+end
+
+-- Create Tabs
+local VisualTab = Window:MakeTab({Name = "Visuals", Icon = "rbxassetid://4483345998"})
+local HitboxTab = Window:MakeTab({Name = "Hitbox", Icon = "rbxassetid://4483345998"})
+local MovementTab = Window:MakeTab({Name = "Movement", Icon = "rbxassetid://4483345998"})
+local AutoTab = Window:MakeTab({Name = "Auto Features", Icon = "rbxassetid://4483345998"})
+local MiscTab = Window:MakeTab({Name = "Misc", Icon = "rbxassetid://4483345998"})
+local SettingsTab = Window:MakeTab({Name = "Settings", Icon = "rbxassetid://4483345998"})
+local CreditsTab = Window:MakeTab({Name = "Credits", Icon = "rbxassetid://4483345998"})
+
+-- Visual Tab
+VisualTab:AddToggle({
+    Name = "Enable ESP",
+    Default = false,
+    Callback = function(Value)
+        Settings.ESP.Enabled = Value
+    end
+})
+
+VisualTab:AddToggle({
+    Name = "Box ESP",
+    Default = false,
+    Callback = function(Value)
+        Settings.ESP.BoxESP = Value
+    end
+})
+
+VisualTab:AddToggle({
+    Name = "Show Names",
+    Default = false,
+    Callback = function(Value)
+        Settings.ESP.ShowNames = Value
+    end
+})
+
+VisualTab:AddToggle({
+    Name = "Show Distance",
+    Default = false,
+    Callback = function(Value)
+        Settings.ESP.ShowDistance = Value
+    end
+})
+
+VisualTab:AddColorpicker({
+    Name = "ESP Color",
+    Default = Color3.fromRGB(255,0,0),
+    Callback = function(Value)
+        Settings.ESP.BoxColor = Value
+    end
+})
+
+-- Hitbox Tab
+HitboxTab:AddToggle({
+    Name = "Enable Hitbox",
+    Default = false,
+    Callback = function(Value)
+        Settings.Hitbox.Enabled = Value
+    end
+})
+
+HitboxTab:AddToggle({
+    Name = "Alternative Method",
+    Default = false,
+    Callback = function(Value)
+        Settings.Hitbox.AlternativeMethod = Value
+    end
+})
+
+HitboxTab:AddToggle({
+    Name = "Remove Self Hitbox",
+    Default = false,
+    Callback = function(Value)
+        Settings.Hitbox.RemoveSelf = Value
+        if Value and LocalPlayer.Character then
+            LocalPlayer.Character.HumanoidRootPart.Size = Vector3.new(2, 2, 1)
+        end
+    end
+})
+
+-- Movement Tab
+MovementTab:AddToggle({
+    Name = "Loop WalkSpeed",
+    Default = false,
+    Callback = function(Value)
+        Settings.Movement.LoopWS = Value
+    end
+})
+
+MovementTab:AddToggle({
+    Name = "Anti-Slip",
+    Default = false,
+    Callback = function(Value)
+        Settings.Movement.AntiSlip = Value
+    end
+})
+
+-- Credits
+CreditsTab:AddLabel("Github: bavly-code")
+CreditsTab:AddLabel("Discord: .trashynoob")
+CreditsTab:AddLabel("Version: 1.2.11")
+
+-- Main Loop
+RunService.RenderStepped:Connect(function()
+    UpdateESP()
+    UpdateHitboxes()
+    
+    if Settings.Movement.LoopWS then
+        if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
+            LocalPlayer.Character.Humanoid.WalkSpeed = Settings.Movement.WalkSpeed
+        end
+    end
+    
+    if Settings.Movement.AntiSlip then
+        ApplyAntiSlip()
+    end
+end)
+
+-- UI Toggle
+UserInputService.InputBegan:Connect(function(input)
+    if input.KeyCode == Enum.KeyCode.RightControl then
+        OrionLib:ToggleUI()
+    end
+end)
