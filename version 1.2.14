@@ -1,0 +1,738 @@
+-- Pass The Bomb
+local OrionLib = loadstring(game:HttpGet(('https://raw.githubusercontent.com/shlexware/Orion/main/source')))()
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local TweenService = game:GetService("TweenService")
+local HttpService = game:GetService("HttpService")
+local LocalPlayer = Players.LocalPlayer
+local Camera = workspace.CurrentCamera
+local Mouse = LocalPlayer:GetMouse()
+
+-- Core Settings
+getgenv().Settings = {
+    ESP = {
+        Enabled = false,
+        BoxESP = false,
+        ChamsESP = false,
+        TracerESP = false,
+        NameESP = false,
+        DistanceESP = false,
+        HealthESP = false,
+        TeamCheck = false,
+        RainbowESP = false,
+        BoxColor = Color3.fromRGB(255,0,0),
+        ChamsColor = Color3.fromRGB(255,0,0),
+        TracerColor = Color3.fromRGB(255,0,0),
+        FillTransparency = 0.5,
+        OutlineTransparency = 0,
+        TracerOrigin = "Bottom",
+        RenderDistance = 1000,
+        TextSize = 13
+    },
+    Hitbox = {
+        Enabled = false,
+        Size = Vector3.new(10, 10, 10),
+        Transparency = 0.7,
+        Color = Color3.fromRGB(255,0,0),
+        TeamCheck = false,
+        ShowHitbox = false,
+        RainbowHitbox = false,
+        RemoveSelf = false
+    },
+    Movement = {
+        WalkSpeed = 16,
+        JumpPower = 50,
+        Fly = {
+            Enabled = false,
+            Speed = 50,
+            NoClip = true
+        },
+        Noclip = false,
+        InfiniteJump = false,
+        BunnyHop = false,
+        TPWalk = false,
+        TPSpeed = 3,
+        AntiSlip = false
+    },
+    AutoPass = {
+        Enabled = false,
+        SmoothTP = true,
+        PassDelay = 0.05,
+        Range = 15,
+        AvoidRepeat = true,
+        ReturnToSpawn = true
+    }
+}
+
+-- ESP System
+local ESPFolder = Instance.new("Folder")
+ESPFolder.Name = "ESPFolder"
+ESPFolder.Parent = game.CoreGui
+
+local ESPCache = {}
+local ChamsCache = {}
+
+local function CreateESPBox(player)
+    local esp = {
+        Box = Drawing.new("Square"),
+        BoxOutline = Drawing.new("Square"),
+        Tracer = Drawing.new("Line"),
+        Name = Drawing.new("Text"),
+        Distance = Drawing.new("Text"),
+        Health = Drawing.new("Text")
+    }
+    
+    -- Box Setup
+    esp.Box.Thickness = 1
+    esp.Box.Filled = false
+    esp.Box.Color = Settings.ESP.BoxColor
+    esp.Box.Visible = false
+    
+    esp.BoxOutline.Thickness = 3
+    esp.BoxOutline.Filled = false
+    esp.BoxOutline.Color = Color3.new(0,0,0)
+    esp.BoxOutline.Visible = false
+    
+    -- Tracer Setup
+    esp.Tracer.From = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y)
+    esp.Tracer.Color = Settings.ESP.TracerColor
+    esp.Tracer.Thickness = 1
+    esp.Tracer.Visible = false
+    
+    -- Text Setup
+    for _, text in pairs({esp.Name, esp.Distance, esp.Health}) do
+        text.Center = true
+        text.Outline = true
+        text.Size = Settings.ESP.TextSize
+        text.Font = 2
+        text.Color = Settings.ESP.BoxColor
+        text.Visible = false
+    end
+    
+    ESPCache[player] = esp
+    return esp
+end
+
+local function UpdateESP()
+    for player, esp in pairs(ESPCache) do
+        if player.Character and player.Character:FindFirstChild("HumanoidRootPart") and 
+           player.Character:FindFirstChild("Humanoid") and player ~= LocalPlayer then
+            
+            local humanoidRootPart = player.Character.HumanoidRootPart
+            local humanoid = player.Character.Humanoid
+            local vector, onScreen = Camera:WorldToViewportPoint(humanoidRootPart.Position)
+            local distance = (LocalPlayer.Character.HumanoidRootPart.Position - humanoidRootPart.Position).Magnitude
+            
+            if onScreen and distance <= Settings.ESP.RenderDistance then
+                -- Box ESP
+                if Settings.ESP.BoxESP then
+                    local rootPos = Camera:WorldToViewportPoint(humanoidRootPart.Position)
+                    local headPos = Camera:WorldToViewportPoint(player.Character.Head.Position + Vector3.new(0,0.5,0))
+                    local legPos = Camera:WorldToViewportPoint(humanoidRootPart.Position - Vector3.new(0,3,0))
+                    
+                    esp.Box.Size = Vector2.new(2350 / rootPos.Z, headPos.Y - legPos.Y)
+                    esp.Box.Position = Vector2.new(rootPos.X - esp.Box.Size.X / 2, rootPos.Y - esp.Box.Size.Y / 2)
+                    esp.BoxOutline.Size = esp.Box.Size
+                    esp.BoxOutline.Position = esp.Box.Position
+                    
+                    esp.Box.Visible = true
+                    esp.BoxOutline.Visible = true
+                else
+                    esp.Box.Visible = false
+                    esp.BoxOutline.Visible = false
+                end
+                
+                -- Tracer ESP
+                if Settings.ESP.TracerESP then
+                    esp.Tracer.To = Vector2.new(vector.X, vector.Y)
+                    esp.Tracer.Visible = true
+                else
+                    esp.Tracer.Visible = false
+                end
+                
+                -- Name ESP
+                if Settings.ESP.NameESP then
+                    esp.Name.Text = player.Name
+                    esp.Name.Position = Vector2.new(vector.X, vector.Y - 40)
+                    esp.Name.Visible = true
+                else
+                    esp.Name.Visible = false
+                end
+                
+                -- Distance ESP
+                if Settings.ESP.DistanceESP then
+                    esp.Distance.Text = math.floor(distance) .. " studs"
+                    esp.Distance.Position = Vector2.new(vector.X, vector.Y + 40)
+                    esp.Distance.Visible = true
+                else
+                    esp.Distance.Visible = false
+                end
+                
+                -- Health ESP
+                if Settings.ESP.HealthESP then
+                    esp.Health.Text = math.floor(humanoid.Health) .. "HP"
+                    esp.Health.Position = Vector2.new(vector.X, vector.Y + 25)
+                    esp.Health.Visible = true
+                else
+                    esp.Health.Visible = false
+                end
+                
+                -- Rainbow ESP
+                if Settings.ESP.RainbowESP then
+                    local rainbow = Color3.fromHSV(tick() % 5 / 5, 1, 1)
+                    esp.Box.Color = rainbow
+                    esp.Tracer.Color = rainbow
+                    esp.Name.Color = rainbow
+                    esp.Distance.Color = rainbow
+                else
+                    esp.Box.Color = Settings.ESP.BoxColor
+                    esp.Tracer.Color = Settings.ESP.TracerColor
+                    esp.Name.Color = Settings.ESP.BoxColor
+                    esp.Distance.Color = Settings.ESP.BoxColor
+                end
+            else
+                for _, drawing in pairs(esp) do
+                    drawing.Visible = false
+                end
+            end
+        else
+            for _, drawing in pairs(esp) do
+                drawing.Visible = false
+            end
+        end
+    end
+end
+-- Hitbox System
+local function UpdateHitboxes()
+    for _, player in pairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer or not Settings.Hitbox.RemoveSelf then
+            if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+                local hrp = player.Character.HumanoidRootPart
+                if Settings.Hitbox.Enabled then
+                    hrp.Size = Settings.Hitbox.Size
+                    hrp.Transparency = Settings.Hitbox.Transparency
+                    hrp.CanCollide = false
+                    hrp.Material = Settings.Hitbox.ShowHitbox and Enum.Material.ForceField or Enum.Material.SmoothPlastic
+                    
+                    if Settings.Hitbox.RainbowHitbox then
+                        hrp.Color = Color3.fromHSV(tick() % 5 / 5, 1, 1)
+                    else
+                        hrp.Color = Settings.Hitbox.Color
+                    end
+                    
+                    -- Touch Interest Handler
+                    if not hrp:FindFirstChild("TouchInterest") then
+                        local touchInterest = Instance.new("TouchTransmitter")
+                        touchInterest.Parent = hrp
+                    end
+                else
+                    hrp.Size = Vector3.new(2, 2, 1)
+                    hrp.Transparency = 1
+                end
+            end
+        end
+    end
+end
+
+-- Movement System
+local function SetupFly()
+    local bp = Instance.new("BodyPosition")
+    bp.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
+    bp.P = 10000
+    bp.Position = LocalPlayer.Character.HumanoidRootPart.Position
+    bp.Parent = LocalPlayer.Character.HumanoidRootPart
+    return bp
+end
+
+local function UpdateFly(bp)
+    local forward = Camera.CFrame.LookVector
+    local right = Camera.CFrame.RightVector
+    local up = Camera.CFrame.UpVector
+    local pos = Vector3.new(0,0,0)
+
+    if UserInputService:IsKeyDown(Enum.KeyCode.W) then
+        pos = pos + forward
+    end
+    if UserInputService:IsKeyDown(Enum.KeyCode.S) then
+        pos = pos - forward
+    end
+    if UserInputService:IsKeyDown(Enum.KeyCode.D) then
+        pos = pos + right
+    end
+    if UserInputService:IsKeyDown(Enum.KeyCode.A) then
+        pos = pos - right
+    end
+    if UserInputService:IsKeyDown(Enum.KeyCode.Space) then
+        pos = pos + up
+    end
+    if UserInputService:IsKeyDown(Enum.KeyCode.LeftControl) then
+        pos = pos - up
+    end
+
+    if pos.Magnitude > 0 then
+        bp.Position = bp.Position + (pos.Unit * Settings.Movement.Fly.Speed)
+    end
+end
+
+local function ApplyMovementModifications()
+    if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
+        local humanoid = LocalPlayer.Character.Humanoid
+        
+        -- WalkSpeed
+        humanoid.WalkSpeed = Settings.Movement.WalkSpeed
+        
+        -- JumpPower
+        humanoid.JumpPower = Settings.Movement.JumpPower
+        
+        -- BunnyHop
+        if Settings.Movement.BunnyHop and humanoid.FloorMaterial ~= Enum.Material.Air then
+            humanoid.Jump = true
+        end
+        
+        -- TPWalk
+        if Settings.Movement.TPWalk and humanoid.MoveDirection.Magnitude > 0 then
+            LocalPlayer.Character.HumanoidRootPart.CFrame = LocalPlayer.Character.HumanoidRootPart.CFrame + 
+                (humanoid.MoveDirection * Settings.Movement.TPSpeed)
+        end
+        
+        -- AntiSlip
+        if Settings.Movement.AntiSlip then
+            humanoid.MaxSlopeAngle = 89
+            for _, part in pairs(LocalPlayer.Character:GetDescendants()) do
+                if part:IsA("BasePart") then
+                    part.CustomPhysicalProperties = PhysicalProperties.new(0, 0, 0, 0, 0)
+                end
+            end
+        end
+    end
+end
+
+-- Noclip Handler
+local function UpdateNoclip()
+    if Settings.Movement.Noclip and LocalPlayer.Character then
+        for _, part in pairs(LocalPlayer.Character:GetDescendants()) do
+            if part:IsA("BasePart") then
+                part.CanCollide = false
+            end
+        end
+    end
+end
+
+-- Auto Pass System
+local lastTarget = nil
+local returnPosition = nil
+
+local function HasBomb()
+    return LocalPlayer.Character and 
+           (LocalPlayer.Character:FindFirstChild("Bomb") or 
+            LocalPlayer.Character:FindFirstChild("Tagged"))
+end
+
+local function GetClosestPlayer()
+    local closest = nil
+    local minDistance = math.huge
+    
+    for _, player in pairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer and player.Character and 
+           player.Character:FindFirstChild("HumanoidRootPart") and
+           (not Settings.AutoPass.AvoidRepeat or player ~= lastTarget) then
+            
+            local distance = (LocalPlayer.Character.HumanoidRootPart.Position - 
+                            player.Character.HumanoidRootPart.Position).Magnitude
+            
+            if distance < minDistance and distance <= Settings.AutoPass.Range then
+                minDistance = distance
+                closest = player
+            end
+        end
+    end
+    
+    return closest
+end
+
+local function ExecutePass(target)
+    if target then
+        returnPosition = LocalPlayer.Character.HumanoidRootPart.Position
+        
+        if Settings.AutoPass.SmoothTP then
+            local tween = TweenService:Create(
+                LocalPlayer.Character.HumanoidRootPart,
+                TweenInfo.new(Settings.AutoPass.PassDelay, Enum.EasingStyle.Quad),
+                {CFrame = target.Character.HumanoidRootPart.CFrame}
+            )
+            tween:Play()
+        else
+            LocalPlayer.Character.HumanoidRootPart.CFrame = target.Character.HumanoidRootPart.CFrame
+        end
+        
+        lastTarget = target
+        
+        if Settings.AutoPass.ReturnToSpawn and returnPosition then
+            task.delay(Settings.AutoPass.PassDelay * 2, function()
+                LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(returnPosition)
+            end)
+        end
+    end
+end
+-- UI Implementation
+local Window = OrionLib:MakeWindow({
+    Name = "Pass The Bomb",
+    HidePremium = false,
+    SaveConfig = true,
+    ConfigFolder = "PTBConfig",
+    IntroEnabled = true,
+    IntroText = "Pass The Bomb"
+})
+
+-- Create Tabs
+local VisualTab = Window:MakeTab({Name = "Visuals", Icon = "rbxassetid://4483345998"})
+local HitboxTab = Window:MakeTab({Name = "Hitbox", Icon = "rbxassetid://4483345998"})
+local MovementTab = Window:MakeTab({Name = "Movement", Icon = "rbxassetid://4483345998"})
+local AutoTab = Window:MakeTab({Name = "Auto Features", Icon = "rbxassetid://4483345998"})
+local MiscTab = Window:MakeTab({Name = "Misc", Icon = "rbxassetid://4483345998"})
+local CreditsTab = Window:MakeTab({Name = "Credits", Icon = "rbxassetid://4483345998"})
+
+-- Visual Tab
+VisualTab:AddToggle({
+    Name = "Enable ESP",
+    Default = false,
+    Callback = function(Value)
+        Settings.ESP.Enabled = Value
+    end
+})
+
+VisualTab:AddToggle({
+    Name = "Box ESP",
+    Default = false,
+    Callback = function(Value)
+        Settings.ESP.BoxESP = Value
+    end
+})
+
+VisualTab:AddToggle({
+    Name = "Tracers",
+    Default = false,
+    Callback = function(Value)
+        Settings.ESP.TracerESP = Value
+    end
+})
+
+VisualTab:AddToggle({
+    Name = "Names",
+    Default = false,
+    Callback = function(Value)
+        Settings.ESP.NameESP = Value
+    end
+})
+
+VisualTab:AddToggle({
+    Name = "Distance",
+    Default = false,
+    Callback = function(Value)
+        Settings.ESP.DistanceESP = Value
+    end
+})
+
+VisualTab:AddToggle({
+    Name = "Health",
+    Default = false,
+    Callback = function(Value)
+        Settings.ESP.HealthESP = Value
+    end
+})
+
+VisualTab:AddToggle({
+    Name = "Rainbow ESP",
+    Default = false,
+    Callback = function(Value)
+        Settings.ESP.RainbowESP = Value
+    end
+})
+
+VisualTab:AddColorpicker({
+    Name = "ESP Color",
+    Default = Color3.fromRGB(255,0,0),
+    Callback = function(Value)
+        Settings.ESP.BoxColor = Value
+        Settings.ESP.TracerColor = Value
+    end
+})
+
+-- Hitbox Tab
+HitboxTab:AddToggle({
+    Name = "Enable Hitbox",
+    Default = false,
+    Callback = function(Value)
+        Settings.Hitbox.Enabled = Value
+    end
+})
+
+HitboxTab:AddToggle({
+    Name = "Show Hitbox",
+    Default = false,
+    Callback = function(Value)
+        Settings.Hitbox.ShowHitbox = Value
+    end
+})
+
+HitboxTab:AddToggle({
+    Name = "Rainbow Hitbox",
+    Default = false,
+    Callback = function(Value)
+        Settings.Hitbox.RainbowHitbox = Value
+    end
+})
+
+HitboxTab:AddSlider({
+    Name = "Hitbox Size",
+    Min = 2,
+    Max = 50,
+    Default = 10,
+    Color = Color3.fromRGB(255,255,255),
+    Increment = 1,
+    ValueName = "studs",
+    Callback = function(Value)
+        Settings.Hitbox.Size = Vector3.new(Value, Value, Value)
+    end
+})
+
+-- Movement Tab
+MovementTab:AddToggle({
+    Name = "Fly",
+    Default = false,
+    Callback = function(Value)
+        Settings.Movement.Fly.Enabled = Value
+        if not Value then
+            local bp = LocalPlayer.Character.HumanoidRootPart:FindFirstChild("BodyPosition")
+            if bp then bp:Destroy() end
+        end
+    end
+})
+
+MovementTab:AddToggle({
+    Name = "Noclip",
+    Default = false,
+    Callback = function(Value)
+        Settings.Movement.Noclip = Value
+    end
+})
+
+MovementTab:AddToggle({
+    Name = "TP Walk",
+    Default = false,
+    Callback = function(Value)
+        Settings.Movement.TPWalk = Value
+    end
+})
+
+MovementTab:AddToggle({
+    Name = "Infinite Jump",
+    Default = false,
+    Callback = function(Value)
+        Settings.Movement.InfiniteJump = Value
+    end
+})
+
+MovementTab:AddToggle({
+    Name = "Bunny Hop",
+    Default = false,
+    Callback = function(Value)
+        Settings.Movement.BunnyHop = Value
+    end
+})
+
+MovementTab:AddSlider({
+    Name = "Walk Speed",
+    Min = 16,
+    Max = 500,
+    Default = 16,
+    Color = Color3.fromRGB(255,255,255),
+    Increment = 1,
+    ValueName = "speed",
+    Callback = function(Value)
+        Settings.Movement.WalkSpeed = Value
+    end
+})
+
+MovementTab:AddSlider({
+    Name = "Fly Speed",
+    Min = 1,
+    Max = 200,
+    Default = 50,
+    Color = Color3.fromRGB(255,255,255),
+    Increment = 1,
+    ValueName = "speed",
+    Callback = function(Value)
+        Settings.Movement.Fly.Speed = Value
+    end
+})
+
+-- Auto Features Tab
+AutoTab:AddToggle({
+    Name = "Auto Pass",
+    Default = false,
+    Callback = function(Value)
+        Settings.AutoPass.Enabled = Value
+    end
+})
+
+AutoTab:AddToggle({
+    Name = "Smooth TP",
+    Default = true,
+    Callback = function(Value)
+        Settings.AutoPass.SmoothTP = Value
+    end
+})
+
+AutoTab:AddToggle({
+    Name = "Return to Spawn",
+    Default = true,
+    Callback = function(Value)
+        Settings.AutoPass.ReturnToSpawn = Value
+    end
+})
+
+AutoTab:AddSlider({
+    Name = "Pass Delay",
+    Min = 0.01,
+    Max = 1,
+    Default = 0.05,
+    Color = Color3.fromRGB(255,255,255),
+    Increment = 0.01,
+    ValueName = "seconds",
+    Callback = function(Value)
+        Settings.AutoPass.PassDelay = Value
+    end
+})
+
+-- Misc Tab
+MiscTab:AddButton({
+    Name = "Infinite Yield",
+    Callback = function()
+        loadstring(game:HttpGet('https://raw.githubusercontent.com/EdgeIY/infiniteyield/master/source'))()
+    end
+})
+
+-- Credits
+CreditsTab:AddLabel("Github: bavly-code")
+CreditsTab:AddLabel("Discord: .trashynoob")
+CreditsTab:AddLabel("Version: 1.2.14")
+-- Main Loops and Connections
+local flyBP = nil
+
+-- ESP Player Addition
+Players.PlayerAdded:Connect(function(player)
+    CreateESPBox(player)
+end)
+
+-- ESP Player Removal
+Players.PlayerRemoving:Connect(function(player)
+    if ESPCache[player] then
+        for _, drawing in pairs(ESPCache[player]) do
+            drawing:Remove()
+        end
+        ESPCache[player] = nil
+    end
+end)
+
+-- Initialize ESP for existing players
+for _, player in pairs(Players:GetPlayers()) do
+    if player ~= LocalPlayer then
+        CreateESPBox(player)
+    end
+end
+
+-- Main Update Loop
+RunService.RenderStepped:Connect(function()
+    -- ESP Updates
+    if Settings.ESP.Enabled then
+        UpdateESP()
+    end
+    
+    -- Hitbox Updates
+    if Settings.Hitbox.Enabled then
+        UpdateHitboxes()
+    end
+    
+    -- Movement Updates
+    ApplyMovementModifications()
+    
+    -- Fly
+    if Settings.Movement.Fly.Enabled then
+        if not flyBP then
+            flyBP = SetupFly()
+        end
+        UpdateFly(flyBP)
+    elseif flyBP then
+        flyBP:Destroy()
+        flyBP = nil
+    end
+    
+    -- Noclip
+    if Settings.Movement.Noclip then
+        UpdateNoclip()
+    end
+    
+    -- Auto Pass
+    if Settings.AutoPass.Enabled and HasBomb() then
+        local target = GetClosestPlayer()
+        if target then
+            ExecutePass(target)
+        end
+    end
+end)
+
+-- Infinite Jump
+UserInputService.JumpRequest:Connect(function()
+    if Settings.Movement.InfiniteJump then
+        LocalPlayer.Character:FindFirstChildOfClass('Humanoid'):ChangeState("Jumping")
+    end
+end)
+
+-- UI Toggle
+UserInputService.InputBegan:Connect(function(input)
+    if input.KeyCode == Enum.KeyCode.RightControl then
+        OrionLib:ToggleUI()
+    end
+end)
+
+-- Cleanup
+game:GetService("CoreGui").ChildRemoved:Connect(function(child)
+    if child.Name == "OrionLib" then
+        -- Clear ESP
+        for _, esp in pairs(ESPCache) do
+            for _, drawing in pairs(esp) do
+                drawing:Remove()
+            end
+        end
+        
+        -- Clear Hitboxes
+        if Settings.Hitbox.Enabled then
+            for _, player in pairs(Players:GetPlayers()) do
+                if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+                    player.Character.HumanoidRootPart.Size = Vector3.new(2, 2, 1)
+                    player.Character.HumanoidRootPart.Transparency = 1
+                end
+            end
+        end
+        
+        -- Clear Fly
+        if flyBP then
+            flyBP:Destroy()
+            flyBP = nil
+        end
+        
+        -- Reset Movement
+        if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
+            LocalPlayer.Character.Humanoid.WalkSpeed = 16
+            LocalPlayer.Character.Humanoid.JumpPower = 50
+        end
+        
+        Settings = nil
+        OrionLib:Destroy()
+    end
+end)
+
+-- Success Message
+print("Pass The Bomb v1.2.14 loaded successfully!")
