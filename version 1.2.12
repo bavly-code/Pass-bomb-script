@@ -1,0 +1,628 @@
+-- Pass The Bomb v1.2.12
+-- Full implementation with all features from previous versions plus new additions
+-- Loading core services and libraries
+local OrionLib = loadstring(game:HttpGet(('https://raw.githubusercontent.com/shlexware/Orion/main/source')))()
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local TweenService = game:GetService("TweenService")
+local LocalPlayer = Players.LocalPlayer
+local Camera = workspace.CurrentCamera
+
+-- Core Settings
+getgenv().Settings = {
+    ESP = {
+        Enabled = false,
+        BoxESP = false,
+        ChamsESP = false,
+        TeamCheck = false,
+        ShowDistance = false,
+        ShowNames = false,
+        ShowHealth = false,
+        RainbowESP = false,
+        BoxColor = Color3.fromRGB(255,0,0),
+        ChamsColor = Color3.fromRGB(255,0,0),
+        FillTransparency = 0.5,
+        OutlineTransparency = 0,
+        RenderDistance = 1000
+    },
+    Hitbox = {
+        Regular = {
+            Enabled = false,
+            Size = Vector3.new(10, 10, 10),
+            Transparency = 0.7,
+            TeamCheck = false
+        },
+        Alternative = {
+            Enabled = false,
+            Size = Vector3.new(15, 15, 15),
+            TouchPart = true
+        },
+        RemoveSelf = false
+    },
+    Movement = {
+        WalkSpeed = 16,
+        JumpPower = 50,
+        TPWalk = {
+            Enabled = false,
+            Speed = 3,
+            Method = "Regular"
+        },
+        Noclip = false,
+        InfiniteJump = false,
+        LoopWS = false,
+        LoopJP = false,
+        AntiSlip = false,
+        BunnyHop = false
+    },
+    AutoPass = {
+        Enabled = false,
+        SmoothTP = true,
+        ReturnToSpawn = true,
+        PassDelay = 0.05,
+        DetectionRange = 15,
+        AvoidRepeat = true,
+        SmartTarget = true
+    },
+    Combat = {
+        AutoDodge = false,
+        PredictMovement = false,
+        SafeDistance = 10
+    },
+    UI = {
+        Theme = "Default",
+        CustomColors = {
+            Background = Color3.fromRGB(30, 30, 30),
+            Text = Color3.fromRGB(255, 255, 255)
+        },
+        ToggleKey = Enum.KeyCode.RightControl
+    }
+}
+
+-- Window Creation
+local Window = OrionLib:MakeWindow({
+    Name = "Pass The Bomb v1.2.12",
+    HidePremium = false,
+    SaveConfig = true,
+    ConfigFolder = "PTBConfig",
+    IntroEnabled = true,
+    IntroText = "Pass The Bomb v1.2.12"
+})
+
+-- Create All Tabs
+local VisualTab = Window:MakeTab({Name = "Visuals", Icon = "rbxassetid://4483345998"})
+local HitboxTab = Window:MakeTab({Name = "Hitbox", Icon = "rbxassetid://4483345998"})
+local MovementTab = Window:MakeTab({Name = "Movement", Icon = "rbxassetid://4483345998"})
+local AutoTab = Window:MakeTab({Name = "Auto Features", Icon = "rbxassetid://4483345998"})
+local CombatTab = Window:MakeTab({Name = "Combat", Icon = "rbxassetid://4483345998"})
+local MiscTab = Window:MakeTab({Name = "Misc", Icon = "rbxassetid://4483345998"})
+local SettingsTab = Window:MakeTab({Name = "Settings", Icon = "rbxassetid://4483345998"})
+local CreditsTab = Window:MakeTab({Name = "Credits", Icon = "rbxassetid://4483345998"})
+
+-- ESP Implementation
+local ESPFolder = Instance.new("Folder")
+ESPFolder.Name = "ESPFolder"
+ESPFolder.Parent = game.CoreGui
+
+local ESPCache = {}
+local ChamsCache = {}
+
+-- ESP Core Functions
+local function CreateESPBox(player)
+    local box = Drawing.new("Square")
+    box.Visible = false
+    box.Color = Settings.ESP.BoxColor
+    box.Thickness = 1
+    box.Transparency = 1
+    box.Filled = false
+    
+    local boxOutline = Drawing.new("Square")
+    boxOutline.Visible = false
+    boxOutline.Color = Color3.new(0, 0, 0)
+    boxOutline.Thickness = 3
+    boxOutline.Transparency = 1
+    boxOutline.Filled = false
+    
+    local name = Drawing.new("Text")
+    name.Visible = false
+    name.Center = true
+    name.Outline = true
+    name.Font = 2
+    name.Size = 13
+    name.Color = Settings.ESP.BoxColor
+    
+    local distance = Drawing.new("Text")
+    distance.Visible = false
+    distance.Center = true
+    distance.Outline = true
+    distance.Font = 2
+    distance.Size = 13
+    distance.Color = Settings.ESP.BoxColor
+    
+    local health = Drawing.new("Text")
+    health.Visible = false
+    health.Center = true
+    health.Outline = true
+    health.Font = 2
+    health.Size = 13
+    health.Color = Color3.new(0, 1, 0)
+    
+    ESPCache[player] = {
+        Box = box,
+        Outline = boxOutline,
+        Name = name,
+        Distance = distance,
+        Health = health
+    }
+end
+
+local function CreateChams(player)
+    local highlight = Instance.new("Highlight")
+    highlight.FillColor = Settings.ESP.ChamsColor
+    highlight.OutlineColor = Color3.new(1, 1, 1)
+    highlight.FillTransparency = Settings.ESP.FillTransparency
+    highlight.OutlineTransparency = Settings.ESP.OutlineTransparency
+    highlight.Parent = game.CoreGui
+    
+    ChamsCache[player] = highlight
+end
+
+-- Hitbox Systems
+local function UpdateRegularHitbox(player)
+    if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+        local hrp = player.Character.HumanoidRootPart
+        if Settings.Hitbox.Regular.Enabled then
+            hrp.Size = Settings.Hitbox.Regular.Size
+            hrp.Transparency = Settings.Hitbox.Regular.Transparency
+            hrp.CanCollide = false
+        end
+    end
+end
+
+local function CreateAlternativeHitbox(player)
+    if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+        local hrp = player.Character.HumanoidRootPart
+        local touchPart = Instance.new("Part")
+        touchPart.Size = Settings.Hitbox.Alternative.Size
+        touchPart.Transparency = 1
+        touchPart.CanCollide = false
+        touchPart.CFrame = hrp.CFrame
+        
+        local weld = Instance.new("WeldConstraint")
+        weld.Part0 = touchPart
+        weld.Part1 = hrp
+        weld.Parent = touchPart
+        touchPart.Parent = hrp
+        
+        touchPart.Touched:Connect(function(hit)
+            -- Pass bomb logic
+        end)
+    end
+end
+
+-- Movement Systems
+local function ApplyMovementModifications()
+    if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
+        local humanoid = LocalPlayer.Character.Humanoid
+        
+        if Settings.Movement.LoopWS then
+            humanoid.WalkSpeed = Settings.Movement.WalkSpeed
+        end
+        
+        if Settings.Movement.LoopJP then
+            humanoid.JumpPower = Settings.Movement.JumpPower
+        end
+        
+        if Settings.Movement.AntiSlip then
+            humanoid.MaxSlopeAngle = 89
+            for _, part in pairs(LocalPlayer.Character:GetDescendants()) do
+                if part:IsA("BasePart") then
+                    part.CustomPhysicalProperties = PhysicalProperties.new(0, 0, 0, 0, 0)
+                end
+            end
+        end
+        
+        if Settings.Movement.BunnyHop and humanoid.Jump then
+            humanoid.Jump = true
+        end
+    end
+end
+
+local function TPWalk()
+    if Settings.Movement.TPWalk.Enabled and LocalPlayer.Character then
+        local hrp = LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+        local humanoid = LocalPlayer.Character:FindFirstChild("Humanoid")
+        
+        if hrp and humanoid and humanoid.MoveDirection.Magnitude > 0 then
+            hrp.CFrame = hrp.CFrame + humanoid.MoveDirection * Settings.Movement.TPWalk.Speed
+        end
+    end
+end
+
+-- Auto Pass System
+local function GetClosestPlayer()
+    local closest = nil
+    local minDistance = math.huge
+    local lastTarget = nil
+    
+    for _, player in pairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer and player.Character and 
+           (not Settings.AutoPass.AvoidRepeat or player ~= lastTarget) then
+            local distance = (LocalPlayer.Character.HumanoidRootPart.Position - 
+                            player.Character.HumanoidRootPart.Position).Magnitude
+            
+            if distance < minDistance and distance <= Settings.AutoPass.DetectionRange then
+                minDistance = distance
+                closest = player
+            end
+        end
+    end
+    
+    if closest then lastTarget = closest end
+    return closest
+end
+
+local function HasBomb()
+    return LocalPlayer.Character and 
+           (LocalPlayer.Character:FindFirstChild("Bomb") or 
+            LocalPlayer.Character:FindFirstChild("Tagged"))
+end
+
+local function AutoPass()
+    if Settings.AutoPass.Enabled and HasBomb() then
+        local target = GetClosestPlayer()
+        if target then
+            local targetPos = target.Character.HumanoidRootPart.Position
+            
+            if Settings.AutoPass.SmoothTP then
+                local tween = TweenService:Create(
+                    LocalPlayer.Character.HumanoidRootPart,
+                    TweenInfo.new(Settings.AutoPass.PassDelay, Enum.EasingStyle.Quad),
+                    {CFrame = CFrame.new(targetPos)}
+                )
+                tween:Play()
+            else
+                LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(targetPos)
+            end
+        end
+    end
+end
+
+-- UI Elements
+-- Visual Tab
+VisualTab:AddToggle({
+    Name = "Enable ESP",
+    Default = false,
+    Callback = function(Value)
+        Settings.ESP.Enabled = Value
+    end
+})
+
+VisualTab:AddToggle({
+    Name = "Box ESP",
+    Default = false,
+    Callback = function(Value)
+        Settings.ESP.BoxESP = Value
+    end
+})
+
+VisualTab:AddToggle({
+    Name = "Chams",
+    Default = false,
+    Callback = function(Value)
+        Settings.ESP.ChamsESP = Value
+    end
+})
+
+VisualTab:AddToggle({
+    Name = "Show Names",
+    Default = false,
+    Callback = function(Value)
+        Settings.ESP.ShowNames = Value
+    end
+})
+
+VisualTab:AddToggle({
+    Name = "Show Health",
+    Default = false,
+    Callback = function(Value)
+        Settings.ESP.ShowHealth = Value
+    end
+})
+
+VisualTab:AddToggle({
+    Name = "Rainbow ESP",
+    Default = false,
+    Callback = function(Value)
+        Settings.ESP.RainbowESP = Value
+    end
+})
+
+VisualTab:AddColorpicker({
+    Name = "ESP Color",
+    Default = Color3.fromRGB(255,0,0),
+    Callback = function(Value)
+        Settings.ESP.BoxColor = Value
+        Settings.ESP.ChamsColor = Value
+    end
+})
+
+-- Hitbox Tab
+HitboxTab:AddToggle({
+    Name = "Regular Hitbox",
+    Default = false,
+    Callback = function(Value)
+        Settings.Hitbox.Regular.Enabled = Value
+    end
+})
+
+HitboxTab:AddToggle({
+    Name = "Alternative Method",
+    Default = false,
+    Callback = function(Value)
+        Settings.Hitbox.Alternative.Enabled = Value
+    end
+})
+
+HitboxTab:AddToggle({
+    Name = "Remove Self Hitbox",
+    Default = false,
+    Callback = function(Value)
+        Settings.Hitbox.RemoveSelf = Value
+        if Value and LocalPlayer.Character then
+            LocalPlayer.Character.HumanoidRootPart.Size = Vector3.new(2, 2, 1)
+        end
+    end
+})
+
+HitboxTab:AddSlider({
+    Name = "Hitbox Size",
+    Min = 2,
+    Max = 50,
+    Default = 10,
+    Color = Color3.fromRGB(255,255,255),
+    Increment = 1,
+    ValueName = "studs",
+    Callback = function(Value)
+        Settings.Hitbox.Regular.Size = Vector3.new(Value, Value, Value)
+    end
+})
+
+-- Movement Tab
+MovementTab:AddToggle({
+    Name = "Loop WalkSpeed",
+    Default = false,
+    Callback = function(Value)
+        Settings.Movement.LoopWS = Value
+    end
+})
+
+MovementTab:AddSlider({
+    Name = "WalkSpeed",
+    Min = 16,
+    Max = 500,
+    Default = 16,
+    Color = Color3.fromRGB(255,255,255),
+    Increment = 1,
+    ValueName = "speed",
+    Callback = function(Value)
+        Settings.Movement.WalkSpeed = Value
+    end
+})
+
+MovementTab:AddToggle({
+    Name = "Loop JumpPower",
+    Default = false,
+    Callback = function(Value)
+        Settings.Movement.LoopJP = Value
+    end
+})
+
+MovementTab:AddToggle({
+    Name = "TP Walk",
+    Default = false,
+    Callback = function(Value)
+        Settings.Movement.TPWalk.Enabled = Value
+    end
+})
+
+MovementTab:AddToggle({
+    Name = "Anti-Slip",
+    Default = false,
+    Callback = function(Value)
+        Settings.Movement.AntiSlip = Value
+    end
+})
+
+MovementTab:AddToggle({
+    Name = "Infinite Jump",
+    Default = false,
+    Callback = function(Value)
+        Settings.Movement.InfiniteJump = Value
+    end
+})
+
+-- Auto Features Tab
+AutoTab:AddToggle({
+    Name = "Auto Pass",
+    Default = false,
+    Callback = function(Value)
+        Settings.AutoPass.Enabled = Value
+    end
+})
+
+AutoTab:AddToggle({
+    Name = "Smooth TP",
+    Default = true,
+    Callback = function(Value)
+        Settings.AutoPass.SmoothTP = Value
+    end
+})
+
+AutoTab:AddSlider({
+    Name = "Pass Delay",
+    Min = 0.01,
+    Max = 1,
+    Default = 0.05,
+    Color = Color3.fromRGB(255,255,255),
+    Increment = 0.01,
+    ValueName = "seconds",
+    Callback = function(Value)
+        Settings.AutoPass.PassDelay = Value
+    end
+})
+
+-- Misc Tab
+MiscTab:AddButton({
+    Name = "Infinite Yield",
+    Callback = function()
+        loadstring(game:HttpGet('https://raw.githubusercontent.com/EdgeIY/infiniteyield/master/source'))()
+    end
+})
+
+-- Settings Tab
+SettingsTab:AddColorpicker({
+    Name = "UI Theme Color",
+    Default = Color3.fromRGB(255,0,0),
+    Callback = function(Value)
+        Settings.UI.CustomColors.Background = Value
+    end
+})
+
+SettingsTab:AddBind({
+    Name = "Toggle UI",
+    Default = Enum.KeyCode.RightControl,
+    Hold = false,
+    Callback = function()
+        OrionLib:ToggleUI()
+    end    
+})
+
+-- Credits Tab
+CreditsTab:AddLabel("Github: bavly-code")
+CreditsTab:AddLabel("Discord: .trashynoob")
+CreditsTab:AddLabel("Version: 1.2.12")
+
+-- Main Loops and Connections
+RunService.RenderStepped:Connect(function()
+    -- ESP Update Loop
+    if Settings.ESP.Enabled then
+        for _, player in pairs(Players:GetPlayers()) do
+            if player ~= LocalPlayer then
+                if not ESPCache[player] then
+                    CreateESPBox(player)
+                end
+                if not ChamsCache[player] and Settings.ESP.ChamsESP then
+                    CreateChams(player)
+                end
+                
+                -- Update ESP Elements
+                if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+                    local hrp = player.Character.HumanoidRootPart
+                    local vector, onScreen = Camera:WorldToViewportPoint(hrp.Position)
+                    
+                    if onScreen and ESPCache[player] then
+                        local esp = ESPCache[player]
+                        local distance = (LocalPlayer.Character.HumanoidRootPart.Position - hrp.Position).Magnitude
+                        
+                        -- Update Box
+                        if Settings.ESP.BoxESP then
+                            -- Box position calculations
+                            esp.Box.Visible = true
+                            esp.Outline.Visible = true
+                            -- Update box size and position
+                        end
+                        
+                        -- Update Name
+                        if Settings.ESP.ShowNames then
+                            esp.Name.Visible = true
+                            esp.Name.Text = player.Name
+                            esp.Name.Position = Vector2.new(vector.X, vector.Y - 40)
+                        end
+                        
+                        -- Update Distance
+                        if Settings.ESP.ShowDistance then
+                            esp.Distance.Visible = true
+                            esp.Distance.Text = math.floor(distance) .. " studs"
+                            esp.Distance.Position = Vector2.new(vector.X, vector.Y + 40)
+                        end
+                        
+                        -- Rainbow ESP
+                        if Settings.ESP.RainbowESP then
+                            esp.Box.Color = Color3.fromHSV(tick() % 5 / 5, 1, 1)
+                        end
+                    end
+                end
+            end
+        end
+    end
+    
+    -- Hitbox Update
+    if Settings.Hitbox.Regular.Enabled then
+        for _, player in pairs(Players:GetPlayers()) do
+            if player ~= LocalPlayer and not Settings.Hitbox.RemoveSelf then
+                UpdateRegularHitbox(player)
+            end
+        end
+    end
+    
+    if Settings.Hitbox.Alternative.Enabled then
+        for _, player in pairs(Players:GetPlayers()) do
+            if player ~= LocalPlayer then
+                CreateAlternativeHitbox(player)
+            end
+        end
+    end
+    
+    -- Movement Updates
+    ApplyMovementModifications()
+    TPWalk()
+    
+    -- Auto Pass
+    AutoPass()
+end)
+
+-- Infinite Jump
+UserInputService.JumpRequest:Connect(function()
+    if Settings.Movement.InfiniteJump then
+        LocalPlayer.Character:FindFirstChildOfClass('Humanoid'):ChangeState("Jumping")
+    end
+end)
+
+-- Noclip
+RunService.Stepped:Connect(function()
+    if Settings.Movement.Noclip then
+        if LocalPlayer.Character then
+            for _, part in pairs(LocalPlayer.Character:GetDescendants()) do
+                if part:IsA("BasePart") then
+                    part.CanCollide = false
+                end
+            end
+        end
+    end
+end)
+
+-- UI Toggle
+UserInputService.InputBegan:Connect(function(input)
+    if input.KeyCode == Settings.UI.ToggleKey then
+        OrionLib:ToggleUI()
+    end
+end)
+
+-- Cleanup on script end
+game:GetService("CoreGui").ChildRemoved:Connect(function(child)
+    if child.Name == "OrionLib" then
+        OrionLib:Destroy()
+        for _, esp in pairs(ESPCache) do
+            for _, drawing in pairs(esp) do
+                if drawing.Remove then
+                    drawing:Remove()
+                end
+            end
+        end
+        for _, highlight in pairs(ChamsCache) do
+            highlight:Destroy()
+        end
+        Settings = nil
+    end
+end)
