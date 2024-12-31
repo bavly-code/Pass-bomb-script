@@ -1,0 +1,1901 @@
+-- Pass The Bomb v1.2.15
+local OrionLib = loadstring(game:HttpGet(('https://raw.githubusercontent.com/shlexware/Orion/main/source')))()
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local TweenService = game:GetService("TweenService")
+local HttpService = game:GetService("HttpService")
+local CoreGui = game:GetService("CoreGui")
+local VirtualUser = game:GetService("VirtualUser")
+local LocalPlayer = Players.LocalPlayer
+local Camera = workspace.CurrentCamera
+local Mouse = LocalPlayer:GetMouse()
+
+-- Comprehensive Settings
+getgenv().Settings = {
+    ESP = {
+        Enabled = false,
+        BoxESP = false,
+        ChamsESP = false,
+        TracerESP = false,
+        SkeletonESP = false,
+        HeadDotESP = false,
+        HealthBarESP = false,
+        ToolESP = false,
+        TeamCheck = false,
+        ShowDistance = false,
+        ShowNames = false,
+        ShowHealth = false,
+        RainbowESP = false,
+        BoxColor = Color3.fromRGB(255,0,0),
+        ChamsColor = Color3.fromRGB(255,0,0),
+        TracerColor = Color3.fromRGB(255,0,0),
+        SkeletonColor = Color3.fromRGB(255,255,255),
+        HeadDotColor = Color3.fromRGB(255,0,0),
+        HealthBarColor = Color3.fromRGB(0,255,0),
+        FillTransparency = 0.5,
+        OutlineTransparency = 0,
+        TracerOrigin = "Bottom", -- Bottom, Mouse, Top
+        RenderDistance = 1000,
+        TextSize = 13,
+        TextFont = 2,
+        BoxThickness = 1,
+        TracerThickness = 1,
+        SkeletonThickness = 1,
+        CustomText = "",
+        ShowTeam = false,
+        TeamColor = false,
+        HighlightTarget = false,
+        TargetColor = Color3.fromRGB(255,255,0)
+    },
+    Hitbox = {
+        Regular = {
+            Enabled = false,
+            Size = Vector3.new(10, 10, 10),
+            Transparency = 0.7,
+            TeamCheck = false,
+            Color = Color3.fromRGB(255,0,0)
+        },
+        Alternative = {
+            Enabled = false,
+            Size = Vector3.new(15, 15, 15),
+            TouchPart = true,
+            CustomPart = false,
+            PartProperties = {
+                CanCollide = false,
+                Massless = true,
+                Transparency = 1
+            }
+        },
+        Advanced = {
+            Enabled = false,
+            HeadSize = Vector3.new(8, 8, 8),
+            TorsoSize = Vector3.new(10, 10, 10),
+            ArmsSize = Vector3.new(6, 6, 6),
+            LegsSize = Vector3.new(6, 6, 6),
+            CustomSizes = {}
+        },
+        RemoveSelf = false,
+        ShowHitbox = false,
+        RainbowHitbox = false,
+        HitboxMaterial = Enum.Material.ForceField,
+        CustomHitboxes = {},
+        DetectionRange = 50,
+        PriorityParts = {"Head", "HumanoidRootPart", "Torso"},
+        ExtendedRange = false
+    },
+    Movement = {
+        WalkSpeed = 16,
+        JumpPower = 50,
+        TPWalk = {
+            Enabled = false,
+            Speed = 3,
+            Method = "Regular", -- Regular, Smooth, Instant
+            BypassCheck = false,
+            CustomDistance = 5
+        },
+        Fly = {
+            Enabled = false,
+            Speed = 50,
+            Method = "Regular", -- Regular, CFrame, Physics
+            NoClip = true,
+            Height = 0,
+            Smooth = false
+        },
+        Vehicle = {
+            Enabled = false,
+            Speed = 100,
+            JumpHeight = 50,
+            CustomProperties = {},
+            AutoDrive = false,
+            InstantEnter = false
+        },
+        Noclip = false,
+        InfiniteJump = false,
+        LoopWS = false,
+        LoopJP = false,
+        AntiSlip = false,
+        BunnyHop = false,
+        AutoJump = false,
+        SpeedBoost = false,
+        CustomSpeed = 1,
+        SpeedMultiplier = 1,
+        HeightBoost = 0,
+        GravityMultiplier = 1,
+        AntiStun = false,
+        AntiRagdoll = false,
+        InstantRespawn = false
+    },
+    AutoPass = {
+        Enabled = false,
+        SmoothTP = true,
+        ReturnToSpawn = true,
+        PassDelay = 0.05,
+        DetectionRange = 15,
+        AvoidRepeat = true,
+        SmartTarget = true,
+        PredictMovement = false,
+        TargetPriority = "Distance", -- Distance, Health, Random
+        BlacklistedPlayers = {},
+        CustomTargets = {},
+        AutoReturn = {
+            Enabled = false,
+            Delay = 1,
+            Position = nil
+        },
+        TargetSelection = {
+            ClosestToMouse = false,
+            LowestHealth = false,
+            HighestHealth = false,
+            Random = false,
+            CustomPriority = {}
+        },
+        SafeMode = false,
+        AntiDetection = false,
+        CustomPatterns = {}
+    },
+    Combat = {
+        AutoDodge = false,
+        PredictMovement = false,
+        SafeDistance = 10,
+        AutoBlock = false,
+        AutoCounter = false,
+        ReactionTime = 0.15,
+        TargetLock = false,
+        AimAssist = {
+            Enabled = false,
+            Strength = 0.5,
+            FOV = 100,
+            Smoothness = 0.5,
+            PredictMovement = true,
+            VisibilityCheck = true,
+            TeamCheck = false,
+            Priority = "Distance" -- Distance, Health, Random
+        },
+        AutoHeal = false,
+        HealThreshold = 50,
+        AutoEquip = false,
+        PreferredWeapons = {},
+        ComboPriority = {},
+        DodgePatterns = {},
+        CustomCombos = {}
+    },
+    Players = {
+        SelectedPlayer = nil,
+        Whitelist = {},
+        Blacklist = {},
+        Friends = {},
+        TeamMembers = {},
+        Priorities = {},
+        TargetInfo = {
+            ShowHealth = true,
+            ShowDistance = true,
+            ShowWeapon = true,
+            HighlightTarget = true
+        },
+        CustomPlayerData = {},
+        AutoTeam = false,
+        PreferredTeam = "None",
+        AvoidPlayers = {}
+    },
+    Performance = {
+        OptimizeESP = false,
+        ReduceRenderDistance = false,
+        DisableParticles = false,
+        LowGraphics = false,
+        MaxPlayers = 100,
+        OptimizationLevel = 1,
+        CustomOptimizations = {},
+        DisableEffects = false,
+        ReduceAnimations = false,
+        LimitFPS = false,
+        MaxFPS = 60,
+        AsyncLoading = true,
+        DynamicRendering = true
+    },
+    Debug = {
+        Enabled = false,
+        ShowFPS = false,
+        ShowPing = false,
+        ShowPosition = false,
+        LogActions = false,
+        SaveLogs = false,
+        ShowHitboxes = false,
+        ShowPathfinding = false,
+        ShowCollisions = false,
+        TrackCalls = false,
+        MonitorMemory = false,
+        CustomDebugInfo = {}
+    },
+    Config = {
+        AutoSave = true,
+        SaveInterval = 60,
+        LoadOnLaunch = true,
+        ConfigName = "DefaultConfig",
+        LastSave = 0,
+        BackupConfigs = true,
+        ExportSettings = false,
+        CustomConfigs = {},
+        ConfigVersion = "1.2.15",
+        AutoUpdate = true
+    },
+    UI = {
+        Theme = "Default",
+        CustomColors = {
+            Background = Color3.fromRGB(30, 30, 30),
+            Text = Color3.fromRGB(255, 255, 255),
+            Border = Color3.fromRGB(20, 20, 20),
+            Accent = Color3.fromRGB(0, 85, 255)
+        },
+        ToggleKey = Enum.KeyCode.RightControl,
+        MinimizeKey = Enum.KeyCode.RightAlt,
+        FastClose = Enum.KeyCode.End,
+        Transparency = 0.95,
+        ShowKeybinds = true,
+        ShowWatermark = true,
+        CustomLayout = false,
+        UIScale = 1,
+        AnimatedUI = true
+    }
+}
+
+-- Cache Systems
+local ESPCache = {
+    Boxes = {},
+    Tracers = {},
+    Names = {},
+    Health = {},
+    Distance = {},
+    Skeletons = {},
+    HeadDots = {},
+    Tools = {},
+    CustomText = {},
+    HighlightCache = {}
+}
+
+local ChamsCache = {}
+local HitboxCache = {}
+local ConnectionCache = {}
+local TargetCache = {}
+local DebugCache = {}
+local ConfigCache = {}
+
+-- Utility Functions
+local Utility = {
+    IsAlive = function(player)
+        return player and player.Character and 
+               player.Character:FindFirstChild("Humanoid") and 
+               player.Character:FindFirstChild("HumanoidRootPart") and
+               player.Character.Humanoid.Health > 0
+    end,
+    
+    GetDistance = function(pos1, pos2)
+        return (pos1 - pos2).Magnitude
+    end,
+    
+    IsVisible = function(part)
+        local ray = Ray.new(Camera.CFrame.Position, (part.Position - Camera.CFrame.Position).Unit * 2048)
+        local hit = workspace:FindPartOnRayWithIgnoreList(ray, {LocalPlayer.Character, Camera})
+        return not hit
+    end,
+    
+    GetClosestPlayer = function(maxDistance)
+        local closest, minDistance = nil, maxDistance or math.huge
+        for _, player in pairs(Players:GetPlayers()) do
+            if player ~= LocalPlayer and Utility.IsAlive(player) then
+                local distance = Utility.GetDistance(LocalPlayer.Character.HumanoidRootPart.Position,
+                                                  player.Character.HumanoidRootPart.Position)
+                if distance < minDistance then
+                    closest = player
+                    minDistance = distance
+                end
+            end
+        end
+        return closest, minDistance
+    end,
+    
+    PredictPosition = function(player, time)
+        local hrp = player.Character.HumanoidRootPart
+        return hrp.Position + (hrp.Velocity * time)
+    end,
+    
+    CreateHighlight = function(player)
+        local highlight = Instance.new("Highlight")
+        highlight.FillColor = Settings.ESP.ChamsColor
+        highlight.OutlineColor = Color3.new(1,1,1)
+        highlight.FillTransparency = Settings.ESP.FillTransparency
+        highlight.OutlineTransparency = Settings.ESP.OutlineTransparency
+        highlight.Parent = CoreGui
+        return highlight
+    end,
+    
+    SaveConfig = function()
+        if Settings.Config.AutoSave then
+            local success, err = pcall(function()
+                local configData = HttpService:JSONEncode(Settings)
+                writefile(Settings.Config.ConfigName .. ".json", configData)
+            end)
+            if success then
+                Settings.Config.LastSave = tick()
+            end
+        end
+    end,
+    
+    LoadConfig = function()
+        if Settings.Config.LoadOnLaunch then
+            local success, data = pcall(function()
+                return HttpService:JSONDecode(readfile(Settings.Config.ConfigName .. ".json"))
+            end)
+            if success then
+                for key, value in pairs(data) do
+                    Settings[key] = value
+                end
+            end
+        end
+    end
+}
+
+-- Complete ESP Implementation
+local function CreateDrawing(type, properties)
+    local drawing = Drawing.new(type)
+    for property, value in pairs(properties) do
+        drawing[property] = value
+    end
+    return drawing
+end
+
+local function InitializeESP()
+    for _, player in pairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer then
+            -- Box ESP
+            ESPCache.Boxes[player] = {
+                Box = CreateDrawing("Square", {
+                    Visible = false,
+                    Color = Settings.ESP.BoxColor,
+                    Thickness = Settings.ESP.BoxThickness,
+                    Filled = false,
+                    Transparency = 1
+                }),
+                Outline = CreateDrawing("Square", {
+                    Visible = false,
+                    Color = Color3.new(0,0,0),
+                    Thickness = Settings.ESP.BoxThickness + 2,
+                    Filled = false,
+                    Transparency = 1
+                })
+            }
+            
+            -- Skeleton ESP
+            ESPCache.Skeletons[player] = {
+                Head = CreateDrawing("Line", {
+                    Visible = false,
+                    Color = Settings.ESP.SkeletonColor,
+                    Thickness = Settings.ESP.SkeletonThickness,
+                    Transparency = 1
+                }),
+                UpperTorso = CreateDrawing("Line", {
+                    Visible = false,
+                    Color = Settings.ESP.SkeletonColor,
+                    Thickness = Settings.ESP.SkeletonThickness,
+                    Transparency = 1
+                }),
+                LowerTorso = CreateDrawing("Line", {
+                    Visible = false,
+                    Color = Settings.ESP.SkeletonColor,
+                    Thickness = Settings.ESP.SkeletonThickness,
+                    Transparency = 1
+                }),
+                LeftUpperArm = CreateDrawing("Line", {
+                    Visible = false,
+                    Color = Settings.ESP.SkeletonColor,
+                    Thickness = Settings.ESP.SkeletonThickness,
+                    Transparency = 1
+                }),
+                LeftLowerArm = CreateDrawing("Line", {
+                    Visible = false,
+                    Color = Settings.ESP.SkeletonColor,
+                    Thickness = Settings.ESP.SkeletonThickness,
+                    Transparency = 1
+                }),
+                RightUpperArm = CreateDrawing("Line", {
+                    Visible = false,
+                    Color = Settings.ESP.SkeletonColor,
+                    Thickness = Settings.ESP.SkeletonThickness,
+                    Transparency = 1
+                }),
+                RightLowerArm = CreateDrawing("Line", {
+                    Visible = false,
+                    Color = Settings.ESP.SkeletonColor,
+                    Thickness = Settings.ESP.SkeletonThickness,
+                    Transparency = 1
+                }),
+                LeftUpperLeg = CreateDrawing("Line", {
+                    Visible = false,
+                    Color = Settings.ESP.SkeletonColor,
+                    Thickness = Settings.ESP.SkeletonThickness,
+                    Transparency = 1
+                }),
+                LeftLowerLeg = CreateDrawing("Line", {
+                    Visible = false,
+                    Color = Settings.ESP.SkeletonColor,
+                    Thickness = Settings.ESP.SkeletonThickness,
+                    Transparency = 1
+                }),
+                RightUpperLeg = CreateDrawing("Line", {
+                    Visible = false,
+                    Color = Settings.ESP.SkeletonColor,
+                    Thickness = Settings.ESP.SkeletonThickness,
+                    Transparency = 1
+                }),
+                RightLowerLeg = CreateDrawing("Line", {
+                    Visible = false,
+                    Color = Settings.ESP.SkeletonColor,
+                    Thickness = Settings.ESP.SkeletonThickness,
+                    Transparency = 1
+                })
+            }
+            
+            -- Tracer ESP
+            ESPCache.Tracers[player] = CreateDrawing("Line", {
+                Visible = false,
+                Color = Settings.ESP.TracerColor,
+                Thickness = Settings.ESP.TracerThickness,
+                Transparency = 1
+            })
+            
+            -- Head Dot ESP
+            ESPCache.HeadDots[player] = CreateDrawing("Circle", {
+                Visible = false,
+                Color = Settings.ESP.HeadDotColor,
+                Thickness = 1,
+                NumSides = 30,
+                Radius = 3,
+                Filled = true,
+                Transparency = 1
+            })
+            
+            -- Health Bar ESP
+            ESPCache.Health[player] = {
+                Bar = CreateDrawing("Square", {
+                    Visible = false,
+                    Color = Settings.ESP.HealthBarColor,
+                    Thickness = 1,
+                    Filled = true,
+                    Transparency = 1
+                }),
+                Background = CreateDrawing("Square", {
+                    Visible = false,
+                    Color = Color3.new(0,0,0),
+                    Thickness = 1,
+                    Filled = true,
+                    Transparency = 1
+                })
+            }
+            
+            -- Name ESP
+            ESPCache.Names[player] = CreateDrawing("Text", {
+                Visible = false,
+                Color = Settings.ESP.BoxColor,
+                Size = Settings.ESP.TextSize,
+                Center = true,
+                Outline = true,
+                Font = Settings.ESP.TextFont,
+                Transparency = 1
+            })
+            
+            -- Distance ESP
+            ESPCache.Distance[player] = CreateDrawing("Text", {
+                Visible = false,
+                Color = Settings.ESP.BoxColor,
+                Size = Settings.ESP.TextSize,
+                Center = true,
+                Outline = true,
+                Font = Settings.ESP.TextFont,
+                Transparency = 1
+            })
+            
+            -- Tool ESP
+            ESPCache.Tools[player] = CreateDrawing("Text", {
+                Visible = false,
+                Color = Settings.ESP.BoxColor,
+                Size = Settings.ESP.TextSize,
+                Center = true,
+                Outline = true,
+                Font = Settings.ESP.TextFont,
+                Transparency = 1
+            })
+            
+            -- Custom Text ESP
+            ESPCache.CustomText[player] = CreateDrawing("Text", {
+                Visible = false,
+                Color = Settings.ESP.BoxColor,
+                Size = Settings.ESP.TextSize,
+                Center = true,
+                Outline = true,
+                Font = Settings.ESP.TextFont,
+                Transparency = 1
+            })
+            
+            -- Chams ESP
+            ChamsCache[player] = Utility.CreateHighlight()
+        end
+    end
+end
+
+-- Complete ESP Update System
+local function UpdateESP()
+    for player, esp in pairs(ESPCache.Boxes) do
+        if Utility.IsAlive(player) and player ~= LocalPlayer then
+            local character = player.Character
+            local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
+            local humanoid = character:FindFirstChild("Humanoid")
+            local head = character:FindFirstChild("Head")
+            local distance = Utility.GetDistance(LocalPlayer.Character.HumanoidRootPart.Position, humanoidRootPart.Position)
+            
+            if distance <= Settings.ESP.RenderDistance then
+                local vector, onScreen = Camera:WorldToViewportPoint(humanoidRootPart.Position)
+                
+                if onScreen then
+                    -- Box ESP Update
+                    if Settings.ESP.BoxESP then
+                        local rootPos = Camera:WorldToViewportPoint(humanoidRootPart.Position)
+                        local headPos = Camera:WorldToViewportPoint(head.Position + Vector3.new(0, 0.5, 0))
+                        local legPos = Camera:WorldToViewportPoint(humanoidRootPart.Position - Vector3.new(0, 3, 0))
+                        
+                        local boxSize = Vector2.new(2350 / rootPos.Z, headPos.Y - legPos.Y)
+                        local boxPosition = Vector2.new(rootPos.X - boxSize.X / 2, rootPos.Y - boxSize.Y / 2)
+                        
+                        esp.Box.Size = boxSize
+                        esp.Box.Position = boxPosition
+                        esp.Outline.Size = boxSize
+                        esp.Outline.Position = boxPosition
+                        
+                        if Settings.ESP.RainbowESP then
+                            esp.Box.Color = Color3.fromHSV(tick() % 5 / 5, 1, 1)
+                        else
+                            esp.Box.Color = Settings.ESP.BoxColor
+                        end
+                        
+                        esp.Box.Visible = true
+                        esp.Outline.Visible = true
+                    else
+                        esp.Box.Visible = false
+                        esp.Outline.Visible = false
+                    end
+                    
+                    -- Skeleton ESP Update
+                    if Settings.ESP.SkeletonESP then
+                        local function UpdateBone(bone1, bone2, drawing)
+                            local pos1 = Camera:WorldToViewportPoint(bone1.Position)
+                            local pos2 = Camera:WorldToViewportPoint(bone2.Position)
+                            
+                            drawing.From = Vector2.new(pos1.X, pos1.Y)
+                            drawing.To = Vector2.new(pos2.X, pos2.Y)
+                            drawing.Color = Settings.ESP.RainbowESP and 
+                                Color3.fromHSV(tick() % 5 / 5, 1, 1) or 
+                                Settings.ESP.SkeletonColor
+                            drawing.Visible = true
+                        end
+                        
+                        local skeleton = ESPCache.Skeletons[player]
+                        local torso = character:FindFirstChild("UpperTorso")
+                        local lowerTorso = character:FindFirstChild("LowerTorso")
+                        local leftUpperArm = character:FindFirstChild("LeftUpperArm")
+                        local leftLowerArm = character:FindFirstChild("LeftLowerArm")
+                        local rightUpperArm = character:FindFirstChild("RightUpperArm")
+                        local rightLowerArm = character:FindFirstChild("RightLowerArm")
+                        local leftUpperLeg = character:FindFirstChild("LeftUpperLeg")
+                        local leftLowerLeg = character:FindFirstChild("LeftLowerLeg")
+                        local rightUpperLeg = character:FindFirstChild("RightUpperLeg")
+                        local rightLowerLeg = character:FindFirstChild("RightLowerLeg")
+                        
+                        if torso and head then
+                            UpdateBone(torso, head, skeleton.Head)
+                        end
+                        if torso and lowerTorso then
+                            UpdateBone(torso, lowerTorso, skeleton.UpperTorso)
+                        end
+                        if leftUpperArm and torso then
+                            UpdateBone(leftUpperArm, torso, skeleton.LeftUpperArm)
+                        end
+                        if leftUpperArm and leftLowerArm then
+                            UpdateBone(leftUpperArm, leftLowerArm, skeleton.LeftLowerArm)
+                        end
+                        if rightUpperArm and torso then
+                            UpdateBone(rightUpperArm, torso, skeleton.RightUpperArm)
+                        end
+                        if rightUpperArm and rightLowerArm then
+                            UpdateBone(rightUpperArm, rightLowerArm, skeleton.RightLowerArm)
+                        end
+                        if leftUpperLeg and lowerTorso then
+                            UpdateBone(leftUpperLeg, lowerTorso, skeleton.LeftUpperLeg)
+                        end
+                        if leftUpperLeg and leftLowerLeg then
+                            UpdateBone(leftUpperLeg, leftLowerLeg, skeleton.LeftLowerLeg)
+                        end
+                        if rightUpperLeg and lowerTorso then
+                            UpdateBone(rightUpperLeg, lowerTorso, skeleton.RightUpperLeg)
+                        end
+                        if rightUpperLeg and rightLowerLeg then
+                            UpdateBone(rightUpperLeg, rightLowerLeg, skeleton.RightLowerLeg)
+                        end
+                    else
+                        for _, drawing in pairs(ESPCache.Skeletons[player]) do
+                            drawing.Visible = false
+                        end
+                    end
+                    
+                    -- Continue with more ESP updates...
+                    -- Tracer ESP Update
+                    if Settings.ESP.TracerESP then
+                        local tracer = ESPCache.Tracers[player]
+                        local tracerStart = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y)
+                        
+                        if Settings.ESP.TracerOrigin == "Mouse" then
+                            tracerStart = Vector2.new(Mouse.X, Mouse.Y)
+                        elseif Settings.ESP.TracerOrigin == "Top" then
+                            tracerStart = Vector2.new(Camera.ViewportSize.X / 2, 0)
+                        end
+                        
+                        tracer.From = tracerStart
+                        tracer.To = Vector2.new(vector.X, vector.Y)
+                        tracer.Color = Settings.ESP.RainbowESP and 
+                            Color3.fromHSV(tick() % 5 / 5, 1, 1) or 
+                            Settings.ESP.TracerColor
+                        tracer.Visible = true
+                    else
+                        ESPCache.Tracers[player].Visible = false
+                    end
+                    
+                    -- Head Dot ESP Update
+                    if Settings.ESP.HeadDotESP then
+                        local headPos = Camera:WorldToViewportPoint(head.Position)
+                        local headDot = ESPCache.HeadDots[player]
+                        
+                        headDot.Position = Vector2.new(headPos.X, headPos.Y)
+                        headDot.Color = Settings.ESP.RainbowESP and 
+                            Color3.fromHSV(tick() % 5 / 5, 1, 1) or 
+                            Settings.ESP.HeadDotColor
+                        headDot.Visible = true
+                    else
+                        ESPCache.HeadDots[player].Visible = false
+                    end
+                    
+                    -- Health Bar ESP Update
+                    if Settings.ESP.HealthBarESP then
+                        local health = ESPCache.Health[player]
+                        local healthPercent = humanoid.Health / humanoid.MaxHealth
+                        local barHeight = esp.Box.Size.Y
+                        local barPosition = Vector2.new(esp.Box.Position.X - 6, esp.Box.Position.Y)
+                        
+                        health.Background.Size = Vector2.new(4, barHeight)
+                        health.Background.Position = barPosition
+                        health.Background.Visible = true
+                        
+                        health.Bar.Size = Vector2.new(4, barHeight * healthPercent)
+                        health.Bar.Position = Vector2.new(barPosition.X, barPosition.Y + barHeight * (1 - healthPercent))
+                        health.Bar.Color = Color3.fromRGB(
+                            255 * (1 - healthPercent),
+                            255 * healthPercent,
+                            0
+                        )
+                        health.Bar.Visible = true
+                    else
+                        ESPCache.Health[player].Background.Visible = false
+                        ESPCache.Health[player].Bar.Visible = false
+                    end
+                    
+                    -- Name ESP Update
+                    if Settings.ESP.ShowNames then
+                        local name = ESPCache.Names[player]
+                        name.Text = player.Name
+                        name.Position = Vector2.new(vector.X, vector.Y - esp.Box.Size.Y / 2 - 15)
+                        name.Color = Settings.ESP.RainbowESP and 
+                            Color3.fromHSV(tick() % 5 / 5, 1, 1) or 
+                            Settings.ESP.BoxColor
+                        name.Visible = true
+                    else
+                        ESPCache.Names[player].Visible = false
+                    end
+                    
+                    -- Distance ESP Update
+                    if Settings.ESP.ShowDistance then
+                        local distanceText = ESPCache.Distance[player]
+                        distanceText.Text = math.floor(distance) .. " studs"
+                        distanceText.Position = Vector2.new(vector.X, vector.Y + esp.Box.Size.Y / 2 + 5)
+                        distanceText.Color = Settings.ESP.RainbowESP and 
+                            Color3.fromHSV(tick() % 5 / 5, 1, 1) or 
+                            Settings.ESP.BoxColor
+                        distanceText.Visible = true
+                    else
+                        ESPCache.Distance[player].Visible = false
+                    end
+                    
+                    -- Tool ESP Update
+                    if Settings.ESP.ToolESP then
+                        local tool = ESPCache.Tools[player]
+                        local equippedTool = character:FindFirstChildOfClass("Tool")
+                        tool.Text = equippedTool and equippedTool.Name or "None"
+                        tool.Position = Vector2.new(vector.X, vector.Y + esp.Box.Size.Y / 2 + 20)
+                        tool.Color = Settings.ESP.RainbowESP and 
+                            Color3.fromHSV(tick() % 5 / 5, 1, 1) or 
+                            Settings.ESP.BoxColor
+                        tool.Visible = true
+                    else
+                        ESPCache.Tools[player].Visible = false
+                    end
+                    
+                    -- Chams Update
+                    if Settings.ESP.ChamsESP then
+                        local chams = ChamsCache[player]
+                        chams.Enabled = true
+                        chams.FillColor = Settings.ESP.RainbowESP and 
+                            Color3.fromHSV(tick() % 5 / 5, 1, 1) or 
+                            Settings.ESP.ChamsColor
+                        chams.OutlineColor = Settings.ESP.RainbowESP and 
+                            Color3.fromHSV((tick() % 5 / 5) + 0.5, 1, 1) or 
+                            Color3.new(1,1,1)
+                        chams.FillTransparency = Settings.ESP.FillTransparency
+                        chams.OutlineTransparency = Settings.ESP.OutlineTransparency
+                        chams.Adornee = character
+                    else
+                        ChamsCache[player].Enabled = false
+                    end
+                else
+                    -- Disable all ESP elements when off screen
+                    for _, drawing in pairs(esp) do
+                        drawing.Visible = false
+                    end
+                    for _, drawing in pairs(ESPCache.Skeletons[player]) do
+                        drawing.Visible = false
+                    end
+                    ESPCache.Tracers[player].Visible = false
+                    ESPCache.HeadDots[player].Visible = false
+                    ESPCache.Health[player].Background.Visible = false
+                    ESPCache.Health[player].Bar.Visible = false
+                    ESPCache.Names[player].Visible = false
+                    ESPCache.Distance[player].Visible = false
+                    ESPCache.Tools[player].Visible = false
+                    ChamsCache[player].Enabled = false
+                end
+            end
+        end
+    end
+end
+-- Complete Hitbox System
+local function UpdateHitboxes()
+    for _, player in pairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer or not Settings.Hitbox.RemoveSelf then
+            if Utility.IsAlive(player) then
+                -- Regular Hitbox
+                if Settings.Hitbox.Regular.Enabled then
+                    local hrp = player.Character.HumanoidRootPart
+                    hrp.Size = Settings.Hitbox.Regular.Size
+                    hrp.Transparency = Settings.Hitbox.Regular.Transparency
+                    hrp.CanCollide = false
+                    hrp.Material = Settings.Hitbox.ShowHitbox and Settings.Hitbox.HitboxMaterial or Enum.Material.SmoothPlastic
+                    
+                    if Settings.Hitbox.RainbowHitbox then
+                        hrp.Color = Color3.fromHSV(tick() % 5 / 5, 1, 1)
+                    else
+                        hrp.Color = Settings.Hitbox.Regular.Color
+                    end
+                end
+                
+                -- Alternative Hitbox
+                if Settings.Hitbox.Alternative.Enabled then
+                    if not HitboxCache[player] then
+                        local part = Instance.new("Part")
+                        part.Size = Settings.Hitbox.Alternative.Size
+                        part.Transparency = 1
+                        part.CanCollide = false
+                        part.Anchored = true
+                        part.Name = "AlternativeHitbox"
+                        
+                        if Settings.Hitbox.Alternative.TouchPart then
+                            local touch = Instance.new("TouchTransmitter")
+                            touch.Parent = part
+                        end
+                        
+                        for prop, value in pairs(Settings.Hitbox.Alternative.PartProperties) do
+                            part[prop] = value
+                        end
+                        
+                        part.Parent = workspace
+                        HitboxCache[player] = part
+                    end
+                    
+                    local hitboxPart = HitboxCache[player]
+                    hitboxPart.CFrame = player.Character.HumanoidRootPart.CFrame
+                end
+                
+                -- Advanced Hitbox
+                if Settings.Hitbox.Advanced.Enabled then
+                    local function UpdatePartSize(part, size)
+                        if part then
+                            part.Size = size
+                            part.Transparency = Settings.Hitbox.Regular.Transparency
+                            part.CanCollide = false
+                        end
+                    end
+                    
+                    -- Head Hitbox
+                    UpdatePartSize(
+                        player.Character:FindFirstChild("Head"),
+                        Settings.Hitbox.Advanced.HeadSize
+                    )
+                    
+                    -- Torso Hitbox
+                    UpdatePartSize(
+                        player.Character:FindFirstChild("UpperTorso"),
+                        Settings.Hitbox.Advanced.TorsoSize
+                    )
+                    UpdatePartSize(
+                        player.Character:FindFirstChild("LowerTorso"),
+                        Settings.Hitbox.Advanced.TorsoSize
+                    )
+                    
+                    -- Arms Hitbox
+                    for _, armPart in pairs({"LeftUpperArm", "LeftLowerArm", "RightUpperArm", "RightLowerArm"}) do
+                        UpdatePartSize(
+                            player.Character:FindFirstChild(armPart),
+                            Settings.Hitbox.Advanced.ArmsSize
+                        )
+                    end
+                    
+                    -- Legs Hitbox
+                    for _, legPart in pairs({"LeftUpperLeg", "LeftLowerLeg", "RightUpperLeg", "RightLowerLeg"}) do
+                        UpdatePartSize(
+                            player.Character:FindFirstChild(legPart),
+                            Settings.Hitbox.Advanced.LegsSize
+                        )
+                    end
+                    
+                    -- Custom Hitboxes
+                    for partName, size in pairs(Settings.Hitbox.Advanced.CustomSizes) do
+                        UpdatePartSize(
+                            player.Character:FindFirstChild(partName),
+                            size
+                        )
+                    end
+                end
+                
+                -- Extended Range
+                if Settings.Hitbox.ExtendedRange then
+                    local function CreateRangePart()
+                        local part = Instance.new("Part")
+                        part.Size = Vector3.new(
+                            Settings.Hitbox.DetectionRange,
+                            Settings.Hitbox.DetectionRange,
+                            Settings.Hitbox.DetectionRange
+                        )
+                        part.Transparency = 1
+                        part.CanCollide = false
+                        part.Anchored = true
+                        
+                        local touch = Instance.new("TouchTransmitter")
+                        touch.Parent = part
+                        
+                        return part
+                    end
+                    
+                    if not HitboxCache[player.."_range"] then
+                        local rangePart = CreateRangePart()
+                        rangePart.Parent = workspace
+                        HitboxCache[player.."_range"] = rangePart
+                    end
+                    
+                    local rangePart = HitboxCache[player.."_range"]
+                    rangePart.CFrame = player.Character.HumanoidRootPart.CFrame
+                end
+            end
+        end
+    end
+end
+-- Complete Movement System
+local function SetupMovement()
+    local character = LocalPlayer.Character
+    local humanoid = character:FindFirstChild("Humanoid")
+    local hrp = character:FindFirstChild("HumanoidRootPart")
+    
+    -- Fly System
+    local flyBP
+    local function UpdateFly()
+        if Settings.Movement.Fly.Enabled then
+            if not flyBP then
+                flyBP = Instance.new("BodyPosition")
+                flyBP.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
+                flyBP.P = 10000
+                flyBP.Position = hrp.Position
+                flyBP.Parent = hrp
+            end
+            
+            local forward = Camera.CFrame.LookVector
+            local right = Camera.CFrame.RightVector
+            local up = Camera.CFrame.UpVector
+            local pos = Vector3.new(0,Settings.Movement.Fly.Height,0)
+            
+            -- Movement Controls
+            if UserInputService:IsKeyDown(Enum.KeyCode.W) then
+                pos = pos + forward
+            end
+            if UserInputService:IsKeyDown(Enum.KeyCode.S) then
+                pos = pos - forward
+            end
+            if UserInputService:IsKeyDown(Enum.KeyCode.D) then
+                pos = pos + right
+            end
+            if UserInputService:IsKeyDown(Enum.KeyCode.A) then
+                pos = pos - right
+            end
+            if UserInputService:IsKeyDown(Enum.KeyCode.Space) then
+                pos = pos + up
+            end
+            if UserInputService:IsKeyDown(Enum.KeyCode.LeftControl) then
+                pos = pos - up
+            end
+            
+            if pos.Magnitude > 0 then
+                if Settings.Movement.Fly.Smooth then
+                    local targetPos = flyBP.Position + (pos.Unit * Settings.Movement.Fly.Speed)
+                    flyBP.Position = flyBP.Position:Lerp(targetPos, 0.5)
+                else
+                    flyBP.Position = flyBP.Position + (pos.Unit * Settings.Movement.Fly.Speed)
+                end
+            end
+            
+            -- Noclip while flying
+            if Settings.Movement.Fly.NoClip then
+                for _, part in pairs(character:GetDescendants()) do
+                    if part:IsA("BasePart") then
+                        part.CanCollide = false
+                    end
+                end
+            end
+        else
+            if flyBP then
+                flyBP:Destroy()
+                flyBP = nil
+            end
+        end
+    end
+    
+    -- Speed Modifications
+    local function UpdateSpeed()
+        if Settings.Movement.SpeedBoost then
+            humanoid.WalkSpeed = Settings.Movement.WalkSpeed * Settings.Movement.SpeedMultiplier
+        else
+            humanoid.WalkSpeed = Settings.Movement.WalkSpeed
+        end
+    end
+    
+    -- Jump Modifications
+    local function UpdateJump()
+        humanoid.JumpPower = Settings.Movement.JumpPower + Settings.Movement.HeightBoost
+        
+        if Settings.Movement.InfiniteJump then
+            humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+        end
+    end
+    
+    -- TP Walk System
+    local function UpdateTPWalk()
+        if Settings.Movement.TPWalk.Enabled and humanoid.MoveDirection.Magnitude > 0 then
+            local moveDir = humanoid.MoveDirection
+            
+            if Settings.Movement.TPWalk.Method == "Smooth" then
+                local targetPos = hrp.Position + (moveDir * Settings.Movement.TPWalk.Speed)
+                hrp.CFrame = hrp.CFrame:Lerp(CFrame.new(targetPos), 0.5)
+            elseif Settings.Movement.TPWalk.Method == "Instant" then
+                hrp.CFrame = CFrame.new(hrp.Position + (moveDir * Settings.Movement.TPWalk.CustomDistance))
+            else
+                hrp.CFrame = hrp.CFrame + (moveDir * Settings.Movement.TPWalk.Speed)
+            end
+        end
+    end
+    
+    -- Vehicle Modifications
+    local function UpdateVehicle()
+        if Settings.Movement.Vehicle.Enabled then
+            local vehicle = character:FindFirstChild("Humanoid").SeatPart
+            if vehicle then
+                local vehicleModel = vehicle.Parent
+                
+                -- Speed modification
+                if vehicleModel:FindFirstChild("Configuration") then
+                    local config = vehicleModel.Configuration
+                    if config:FindFirstChild("MaxSpeed") then
+                        config.MaxSpeed.Value = Settings.Movement.Vehicle.Speed
+                    end
+                end
+                
+                -- Jump modification
+                if Settings.Movement.Vehicle.JumpHeight > 0 and UserInputService:IsKeyDown(Enum.KeyCode.Space) then
+                    vehicle.Velocity = vehicle.Velocity + Vector3.new(0, Settings.Movement.Vehicle.JumpHeight, 0)
+                end
+                
+                -- Custom properties
+                for prop, value in pairs(Settings.Movement.Vehicle.CustomProperties) do
+                    if vehicle[prop] then
+                        vehicle[prop] = value
+                    end
+                end
+                
+                -- Auto Drive
+                if Settings.Movement.Vehicle.AutoDrive then
+                    -- Auto drive implementation
+                end
+            end
+        end
+    end
+    
+    -- Anti Modifications
+    local function UpdateAntiFeatures()
+        if Settings.Movement.AntiStun then
+            humanoid.PlatformStand = false
+        end
+        
+        if Settings.Movement.AntiRagdoll then
+            for _, joint in pairs(character:GetDescendants()) do
+                if joint:IsA("HingeConstraint") or joint:IsA("BallSocketConstraint") then
+                    joint.Enabled = false
+                end
+            end
+        end
+    end
+    
+    return {
+        UpdateFly = UpdateFly,
+        UpdateSpeed = UpdateSpeed,
+        UpdateJump = UpdateJump,
+        UpdateTPWalk = UpdateTPWalk,
+        UpdateVehicle = UpdateVehicle,
+        UpdateAntiFeatures = UpdateAntiFeatures
+    }
+end
+-- Complete Auto Pass System
+local function SetupAutoPass()
+    local lastTarget = nil
+    local returnPosition = nil
+    local passHistory = {}
+    local predictionData = {}
+    
+    local function HasBomb()
+        return LocalPlayer.Character and 
+               (LocalPlayer.Character:FindFirstChild("Bomb") or 
+                LocalPlayer.Character:FindFirstChild("Tagged"))
+    end
+    
+    local function CalculateTargetPriority(player)
+        local priority = 0
+        local distance = Utility.GetDistance(
+            LocalPlayer.Character.HumanoidRootPart.Position,
+            player.Character.HumanoidRootPart.Position
+        )
+        
+        -- Distance priority
+        priority = priority + (1000 - distance)
+        
+        -- Health priority
+        if Settings.AutoPass.TargetPriority == "Health" then
+            priority = priority + player.Character.Humanoid.Health
+        end
+        
+        -- Custom priority
+        if Settings.AutoPass.CustomTargets[player.Name] then
+            priority = priority + Settings.AutoPass.CustomTargets[player.Name]
+        end
+        
+        return priority
+    end
+    
+    local function PredictPlayerMovement(player)
+        local hrp = player.Character.HumanoidRootPart
+        local currentTime = tick()
+        
+        if not predictionData[player] then
+            predictionData[player] = {
+                lastPosition = hrp.Position,
+                lastTime = currentTime,
+                velocity = Vector3.new(0,0,0)
+            }
+        end
+        
+        local data = predictionData[player]
+        local timeDelta = currentTime - data.lastTime
+        local displacement = hrp.Position - data.lastPosition
+        
+        data.velocity = displacement / timeDelta
+        data.lastPosition = hrp.Position
+        data.lastTime = currentTime
+        
+        return hrp.Position + (data.velocity * 0.1) -- Predict 0.1 seconds ahead
+    end
+    
+    local function GetBestTarget()
+        local bestTarget = nil
+        local highestPriority = -math.huge
+        
+        for _, player in pairs(Players:GetPlayers()) do
+            if player ~= LocalPlayer and Utility.IsAlive(player) then
+                -- Basic checks
+                if Settings.AutoPass.AvoidRepeat and passHistory[player] then
+                    continue
+                end
+                if Settings.AutoPass.BlacklistedPlayers[player.Name] then
+                    continue
+                end
+                
+                -- Distance check
+                local targetPos = Settings.AutoPass.PredictMovement and 
+                    PredictPlayerMovement(player) or 
+                    player.Character.HumanoidRootPart.Position
+                    
+                local distance = Utility.GetDistance(
+                    LocalPlayer.Character.HumanoidRootPart.Position,
+                    targetPos
+                )
+                
+                if distance <= Settings.AutoPass.DetectionRange then
+                    -- Calculate priority
+                    local priority = CalculateTargetPriority(player)
+                    
+                    -- Smart targeting checks
+                    if Settings.AutoPass.SmartTarget then
+                        -- Check if target is looking at bomb
+                        local looking = Utility.IsVisible(player.Character.Head)
+                        if looking then
+                            priority = priority + 500
+                        end
+                        
+                        -- Check if target is moving
+                        if player.Character.Humanoid.MoveDirection.Magnitude > 0 then
+                            priority = priority - 200
+                        end
+                    end
+                    
+                    if priority > highestPriority then
+                        bestTarget = player
+                        highestPriority = priority
+                    end
+                end
+            end
+        end
+        
+        return bestTarget
+    end
+    
+    local function ExecutePass(target)
+        if target then
+            returnPosition = LocalPlayer.Character.HumanoidRootPart.Position
+            
+            -- Safe mode checks
+            if Settings.AutoPass.SafeMode then
+                local isSafe = true
+                for _, player in pairs(Players:GetPlayers()) do
+                    if player ~= LocalPlayer and player ~= target and Utility.IsAlive(player) then
+                        local distance = Utility.GetDistance(
+                            target.Character.HumanoidRootPart.Position,
+                            player.Character.HumanoidRootPart.Position
+                        )
+                        if distance < 10 then
+                            isSafe = false
+                            break
+                        end
+                    end
+                end
+                if not isSafe then return end
+            end
+            
+            -- Execute pass
+            if Settings.AutoPass.SmoothTP then
+                local targetPos = Settings.AutoPass.PredictMovement and 
+                    PredictPlayerMovement(target) or 
+                    target.Character.HumanoidRootPart.Position
+                    
+                local tween = TweenService:Create(
+                    LocalPlayer.Character.HumanoidRootPart,
+                    TweenInfo.new(Settings.AutoPass.PassDelay, Enum.EasingStyle.Quad),
+                    {CFrame = CFrame.new(targetPos)}
+                )
+                tween:Play()
+            else
+                LocalPlayer.Character.HumanoidRootPart.CFrame = 
+                    CFrame.new(target.Character.HumanoidRootPart.Position)
+            end
+            
+            -- Update pass history
+            passHistory[target] = tick()
+            lastTarget = target
+            
+            -- Return to position
+            if Settings.AutoPass.ReturnToSpawn and returnPosition then
+                task.delay(Settings.AutoPass.PassDelay * 2, function()
+                    if Settings.AutoPass.SmoothTP then
+                        local tween = TweenService:Create(
+                            LocalPlayer.Character.HumanoidRootPart,
+                            TweenInfo.new(Settings.AutoPass.PassDelay, Enum.EasingStyle.Quad),
+                            {CFrame = CFrame.new(returnPosition)}
+                        )
+                        tween:Play()
+                    else
+                        LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(returnPosition)
+                    end
+                end)
+            end
+        end
+    end
+    
+    return {
+        HasBomb = HasBomb,
+        GetBestTarget = GetBestTarget,
+        ExecutePass = ExecutePass
+    }
+end
+-- Complete Combat System
+local function SetupCombat()
+    local aimTarget = nil
+    local dodgeActive = false
+    local blockActive = false
+    
+    local function GetAimTarget()
+        local closest = nil
+        local minDistance = math.huge
+        local minFOV = Settings.Combat.AimAssist.FOV
+        
+        for _, player in pairs(Players:GetPlayers()) do
+            if player ~= LocalPlayer and Utility.IsAlive(player) then
+                -- Team Check
+                if Settings.Combat.AimAssist.TeamCheck and player.Team == LocalPlayer.Team then
+                    continue
+                end
+                
+                -- Visibility Check
+                if Settings.Combat.AimAssist.VisibilityCheck and not Utility.IsVisible(player.Character.Head) then
+                    continue
+                end
+                
+                local screenPos, onScreen = Camera:WorldToViewportPoint(player.Character.Head.Position)
+                if onScreen then
+                    local screenCenter = Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y/2)
+                    local fov = (Vector2.new(screenPos.X, screenPos.Y) - screenCenter).Magnitude
+                    
+                    if fov < minFOV then
+                        closest = player
+                        minFOV = fov
+                    end
+                end
+            end
+        end
+        
+        return closest
+    end
+    
+    local function UpdateAimAssist()
+        if Settings.Combat.AimAssist.Enabled then
+            aimTarget = GetAimTarget()
+            
+            if aimTarget then
+                local targetPos = aimTarget.Character.Head.Position
+                if Settings.Combat.AimAssist.PredictMovement then
+                    targetPos = targetPos + (aimTarget.Character.HumanoidRootPart.Velocity * 0.1)
+                end
+                
+                local targetCFrame = Camera.CFrame:Lerp(
+                    CFrame.new(Camera.CFrame.Position, targetPos),
+                    Settings.Combat.AimAssist.Strength * Settings.Combat.AimAssist.Smoothness
+                )
+                
+                Camera.CFrame = targetCFrame
+            end
+        end
+    end
+    
+    local function StartDodge()
+        if not dodgeActive and Settings.Combat.AutoDodge then
+            dodgeActive = true
+            
+            local function DodgePattern()
+                local hrp = LocalPlayer.Character.HumanoidRootPart
+                local patterns = Settings.Combat.DodgePatterns
+                
+                if #patterns > 0 then
+                    local pattern = patterns[math.random(1, #patterns)]
+                    for _, move in ipairs(pattern) do
+                        if not dodgeActive then break end
+                        hrp.CFrame = hrp.CFrame * move
+                        task.wait(0.1)
+                    end
+                else
+                    -- Default dodge pattern
+                    local directions = {
+                        CFrame.new(0, 0, -3),
+                        CFrame.new(3, 0, 0),
+                        CFrame.new(0, 0, 3),
+                        CFrame.new(-3, 0, 0)
+                    }
+                    
+                    for _, direction in ipairs(directions) do
+                        if not dodgeActive then break end
+                        hrp.CFrame = hrp.CFrame * direction
+                        task.wait(0.1)
+                    end
+                end
+            end
+            
+            task.spawn(DodgePattern)
+        end
+    end
+    
+    local function StopDodge()
+        dodgeActive = false
+    end
+    
+    local function UpdateAutoBlock()
+        if Settings.Combat.AutoBlock then
+            for _, player in pairs(Players:GetPlayers()) do
+                if player ~= LocalPlayer and Utility.IsAlive(player) then
+                    local distance = Utility.GetDistance(
+                        LocalPlayer.Character.HumanoidRootPart.Position,
+                        player.Character.HumanoidRootPart.Position
+                    )
+                    
+                    if distance <= Settings.Combat.SafeDistance then
+                        -- Implement game-specific block mechanism here
+                        blockActive = true
+                        return
+                    end
+                end
+            end
+            blockActive = false
+        end
+    end
+    
+    local function UpdateAutoHeal()
+        if Settings.Combat.AutoHeal then
+            local humanoid = LocalPlayer.Character:FindFirstChild("Humanoid")
+            if humanoid and humanoid.Health <= Settings.Combat.HealThreshold then
+                -- Search for healing items in inventory
+                local healingItem = LocalPlayer.Backpack:FindFirstChild("MedKit") or
+                                  LocalPlayer.Backpack:FindFirstChild("Bandage")
+                
+                if healingItem then
+                    healingItem.Parent = LocalPlayer.Character
+                    -- Implement game-specific healing mechanism here
+                end
+            end
+        end
+    end
+    
+    local function UpdateAutoEquip()
+        if Settings.Combat.AutoEquip then
+            local equipped = LocalPlayer.Character:FindFirstChildOfClass("Tool")
+            
+            if not equipped then
+                for _, weaponName in ipairs(Settings.Combat.PreferredWeapons) do
+                    local weapon = LocalPlayer.Backpack:FindFirstChild(weaponName)
+                    if weapon then
+                        weapon.Parent = LocalPlayer.Character
+                        break
+                    end
+                end
+            end
+        end
+    end
+    
+    return {
+        UpdateAimAssist = UpdateAimAssist,
+        StartDodge = StartDodge,
+        StopDodge = StopDodge,
+        UpdateAutoBlock = UpdateAutoBlock,
+        UpdateAutoHeal = UpdateAutoHeal,
+        UpdateAutoEquip = UpdateAutoEquip
+    }
+end
+-- Complete Player Management System
+local function SetupPlayerManager()
+    local targetedPlayers = {}
+    local playerData = {}
+    
+    local function InitializePlayerData(player)
+        playerData[player] = {
+            lastPosition = Vector3.new(),
+            averageSpeed = 0,
+            killCount = 0,
+            deathCount = 0,
+            bombPasses = 0,
+            lastInteraction = 0,
+            predictions = {},
+            customData = {}
+        }
+    end
+    
+    local function UpdatePlayerData(player)
+        if not playerData[player] then return end
+        local data = playerData[player]
+        
+        -- Position and speed tracking
+        if Utility.IsAlive(player) then
+            local currentPos = player.Character.HumanoidRootPart.Position
+            local displacement = (currentPos - data.lastPosition).Magnitude
+            local timeElapsed = tick() - data.lastInteraction
+            
+            data.averageSpeed = (data.averageSpeed + (displacement/timeElapsed))/2
+            data.lastPosition = currentPos
+            data.lastInteraction = tick()
+            
+            -- Movement prediction
+            table.insert(data.predictions, {
+                position = currentPos,
+                velocity = player.Character.HumanoidRootPart.Velocity,
+                timestamp = tick()
+            })
+            
+            -- Keep only recent predictions
+            while #data.predictions > 10 do
+                table.remove(data.predictions, 1)
+            end
+        end
+    end
+    
+    local function PredictPlayerPosition(player, timeAhead)
+        if not playerData[player] or #playerData[player].predictions < 2 then
+            return player.Character.HumanoidRootPart.Position
+        end
+        
+        local predictions = playerData[player].predictions
+        local lastPred = predictions[#predictions]
+        local averageVelocity = Vector3.new()
+        
+        for i = #predictions-1, 1, -1 do
+            averageVelocity = averageVelocity + predictions[i].velocity
+        end
+        averageVelocity = averageVelocity / (#predictions-1)
+        
+        return lastPred.position + (averageVelocity * timeAhead)
+    end
+    
+    local function UpdateTargetList()
+        for player, _ in pairs(targetedPlayers) do
+            if not Players:FindFirstChild(player.Name) then
+                targetedPlayers[player] = nil
+                playerData[player] = nil
+            end
+        end
+    end
+    
+    local function AddTarget(player, priority)
+        if player and player ~= LocalPlayer then
+            targetedPlayers[player] = priority or 1
+            if not playerData[player] then
+                InitializePlayerData(player)
+            end
+        end
+    end
+    
+    local function RemoveTarget(player)
+        targetedPlayers[player] = nil
+    end
+    
+    local function GetHighestPriorityTarget()
+        local highestPriority = -math.huge
+        local priorityTarget = nil
+        
+        for player, priority in pairs(targetedPlayers) do
+            if Utility.IsAlive(player) and priority > highestPriority then
+                highestPriority = priority
+                priorityTarget = player
+            end
+        end
+        
+        return priorityTarget
+    end
+    
+    local function UpdateTeamStatus()
+        if Settings.Players.AutoTeam and Settings.Players.PreferredTeam ~= "None" then
+            local currentTeam = LocalPlayer.Team
+            if currentTeam and currentTeam.Name ~= Settings.Players.PreferredTeam then
+                -- Implement game-specific team change mechanism here
+            end
+        end
+    end
+    
+    local function IsPlayerFriend(player)
+        return Settings.Players.Friends[player.Name] or player:IsFriendsWith(LocalPlayer.UserId)
+    end
+    
+    local function IsPlayerTeammate(player)
+        return Settings.Players.TeamMembers[player.Name] or 
+               (player.Team and player.Team == LocalPlayer.Team)
+    end
+    
+    local function ShouldAvoidPlayer(player)
+        return Settings.Players.AvoidPlayers[player.Name] or
+               (Settings.Players.Blacklist[player.Name] and true or false)
+    end
+    
+    local function GetPlayerInfo(player)
+        if not playerData[player] then return {} end
+        
+        return {
+            averageSpeed = playerData[player].averageSpeed,
+            killCount = playerData[player].killCount,
+            deathCount = playerData[player].deathCount,
+            bombPasses = playerData[player].bombPasses,
+            lastSeen = tick() - playerData[player].lastInteraction,
+            customData = playerData[player].customData
+        }
+    end
+    
+    -- Event Connections
+    Players.PlayerAdded:Connect(function(player)
+        if Settings.Players.AutoTarget then
+            AddTarget(player)
+        end
+    end)
+    
+    Players.PlayerRemoving:Connect(function(player)
+        targetedPlayers[player] = nil
+        playerData[player] = nil
+    end)
+    
+    return {
+        AddTarget = AddTarget,
+        RemoveTarget = RemoveTarget,
+        GetHighestPriorityTarget = GetHighestPriorityTarget,
+        UpdatePlayerData = UpdatePlayerData,
+        PredictPlayerPosition = PredictPlayerPosition,
+        UpdateTargetList = UpdateTargetList,
+        UpdateTeamStatus = UpdateTeamStatus,
+        IsPlayerFriend = IsPlayerFriend,
+        IsPlayerTeammate = IsPlayerTeammate,
+        ShouldAvoidPlayer = ShouldAvoidPlayer,
+        GetPlayerInfo = GetPlayerInfo
+    }
+end
+-- Complete Configuration System
+local function SetupConfiguration()
+    local configFolder = "PTBConfigs"
+    local defaultConfig = "default.json"
+    
+    -- Create config directory if it doesn't exist
+    if not isfolder(configFolder) then
+        makefolder(configFolder)
+    end
+    
+    local function SaveConfig(name)
+        local configPath = configFolder .. "/" .. (name or defaultConfig)
+        local configData = {
+            Settings = Settings,
+            Version = Settings.Config.ConfigVersion,
+            LastSaved = os.time(),
+            GameId = game.GameId
+        }
+        
+        -- Create backup if enabled
+        if Settings.Config.BackupConfigs then
+            local backupPath = configFolder .. "/backups/" .. os.date("%Y-%m-%d_%H-%M-%S") .. ".json"
+            if not isfolder(configFolder .. "/backups") then
+                makefolder(configFolder .. "/backups")
+            end
+            writefile(backupPath, HttpService:JSONEncode(configData))
+        end
+        
+        -- Save main config
+        writefile(configPath, HttpService:JSONEncode(configData))
+        
+        -- Export if enabled
+        if Settings.Config.ExportSettings then
+            local exportPath = configFolder .. "/exports/" .. os.date("%Y-%m-%d_%H-%M-%S") .. ".lua"
+            if not isfolder(configFolder .. "/exports") then
+                makefolder(configFolder .. "/exports")
+            end
+            writefile(exportPath, "return " .. HttpService:JSONEncode(configData))
+        end
+    end
+    
+    local function LoadConfig(name)
+        local configPath = configFolder .. "/" .. (name or defaultConfig)
+        if isfile(configPath) then
+            local success, configData = pcall(function()
+                return HttpService:JSONDecode(readfile(configPath))
+            end)
+            
+            if success then
+                -- Version check
+                if configData.Version ~= Settings.Config.ConfigVersion then
+                    -- Implement version migration here
+                    print("Config version mismatch - attempting migration...")
+                end
+                
+                -- Update settings
+                for category, values in pairs(configData.Settings) do
+                    if Settings[category] then
+                        for key, value in pairs(values) do
+                            Settings[category][key] = value
+                        end
+                    end
+                end
+                
+                return true
+            end
+        end
+        return false
+    end
+    
+    local function AutoSaveConfig()
+        while Settings.Config.AutoSave do
+            SaveConfig()
+            task.wait(Settings.Config.SaveInterval)
+        end
+    end
+    
+    local function ExportConfig(name)
+        local configPath = configFolder .. "/" .. (name or defaultConfig)
+        if isfile(configPath) then
+            local configData = readfile(configPath)
+            setclipboard(configData)
+            return true
+        end
+        return false
+    end
+    
+    local function ImportConfig(configString)
+        local success, configData = pcall(function()
+            return HttpService:JSONDecode(configString)
+        end)
+        
+        if success and configData.Settings then
+            for category, values in pairs(configData.Settings) do
+                if Settings[category] then
+                    for key, value in pairs(values) do
+                        Settings[category][key] = value
+                    end
+                end
+            end
+            return true
+        end
+        return false
+    end
+    
+    -- Debug System
+    local DebugSystem = {
+        logs = {},
+        startTime = tick(),
+        frameCount = 0,
+        lastFPSUpdate = tick(),
+        fps = 0,
+        
+        LogAction = function(self, action, data)
+            if Settings.Debug.LogActions then
+                local logEntry = {
+                    timestamp = tick(),
+                    action = action,
+                    data = data
+                }
+                table.insert(self.logs, logEntry)
+                
+                if Settings.Debug.SaveLogs then
+                    appendfile(
+                        configFolder .. "/logs/" .. os.date("%Y-%m-%d") .. ".log",
+                        HttpService:JSONEncode(logEntry) .. "\n"
+                    )
+                end
+            end
+        end,
+        
+        UpdateFPS = function(self)
+            self.frameCount = self.frameCount + 1
+            local currentTime = tick()
+            local elapsed = currentTime - self.lastFPSUpdate
+            
+            if elapsed >= 1 then
+                self.fps = math.floor(self.frameCount / elapsed)
+                self.frameCount = 0
+                self.lastFPSUpdate = currentTime
+            end
+        end,
+        
+        GetDebugInfo = function(self)
+            return {
+                FPS = self.fps,
+                Ping = LocalPlayer:GetNetworkPing() * 1000,
+                MemoryUsage = math.floor(stats().PhysicalMemory / 1024 / 1024),
+                Uptime = math.floor(tick() - self.startTime),
+                Position = LocalPlayer.Character and 
+                          LocalPlayer.Character:FindFirstChild("HumanoidRootPart") and 
+                          LocalPlayer.Character.HumanoidRootPart.Position or Vector3.new(),
+                CustomInfo = Settings.Debug.CustomDebugInfo
+            }
+        end,
+        
+        DrawDebugUI = function(self)
+            if Settings.Debug.Enabled then
+                local debugInfo = self:GetDebugInfo()
+                
+                -- Implementation of debug UI drawing here
+                -- This would create and update on-screen debug information
+            end
+        end
+    }
+    
+    -- Start auto-save if enabled
+    if Settings.Config.AutoSave then
+        task.spawn(AutoSaveConfig)
+    end
+    
+    return {
+        SaveConfig = SaveConfig,
+        LoadConfig = LoadConfig,
+        ExportConfig = ExportConfig,
+        ImportConfig = ImportConfig,
+        Debug = DebugSystem
+    }
+end
+-- Complete Main Loop and UI System
+local function SetupMainSystems()
+    local PlayerManager = SetupPlayerManager()
+    local Combat = SetupCombat()
+    local Movement = SetupMovement()
+    local AutoPass = SetupAutoPass()
+    local Config = SetupConfiguration()
+    
+    -- UI Creation
+    local Window = OrionLib:MakeWindow({
+        Name = "Pass The Bomb v1.2.15",
+        HidePremium = false,
+        SaveConfig = true,
+        ConfigFolder = "PTBConfigs",
+        IntroEnabled = true,
+        IntroText = "Pass The Bomb v1.2.15",
+        IntroIcon = "rbxassetid://7733955740"
+    })
+    
+    -- Create All Tabs
+    local CombatTab = Window:MakeTab({Name = "Combat", Icon = "rbxassetid://7733774602"})
+    local VisualTab = Window:MakeTab({Name = "Visual", Icon = "rbxassetid://7733774602"})
+    local MovementTab = Window:MakeTab({Name = "Movement", Icon = "rbxassetid://7733774602"})
+    local AutoPassTab = Window:MakeTab({Name = "Auto Pass", Icon = "rbxassetid://7733774602"})
+    local PlayersTab = Window:MakeTab({Name = "Players", Icon = "rbxassetid://7733774602"})
+    local ConfigTab = Window:MakeTab({Name = "Config", Icon = "rbxassetid://7733774602"})
+    local DebugTab = Window:MakeTab({Name = "Debug", Icon = "rbxassetid://7733774602"})
+    
+    -- Main Update Loop
+    RunService.RenderStepped:Connect(function()
+        if Settings.ESP.Enabled then
+            UpdateESP()
+        end
+        
+        if Settings.Hitbox.Regular.Enabled or 
+           Settings.Hitbox.Alternative.Enabled or 
+           Settings.Hitbox.Advanced.Enabled then
+            UpdateHitboxes()
+        end
+        
+        if Settings.Combat.AimAssist.Enabled then
+            Combat.UpdateAimAssist()
+        end
+        
+        if Settings.AutoPass.Enabled and AutoPass.HasBomb() then
+            local target = AutoPass.GetBestTarget()
+            if target then
+                AutoPass.ExecutePass(target)
+            end
+        end
+        
+        -- Movement Updates
+        Movement.UpdateFly()
+        Movement.UpdateSpeed()
+        Movement.UpdateJump()
+        Movement.UpdateTPWalk()
+        Movement.UpdateVehicle()
+        Movement.UpdateAntiFeatures()
+        
+        -- Combat Updates
+        Combat.UpdateAutoBlock()
+        Combat.UpdateAutoHeal()
+        Combat.UpdateAutoEquip()
+        
+        -- Player Management Updates
+        PlayerManager.UpdateTargetList()
+        PlayerManager.UpdateTeamStatus()
+        
+        -- Debug Updates
+        Config.Debug:UpdateFPS()
+        if Settings.Debug.Enabled then
+            Config.Debug:DrawDebugUI()
+        end
+    end)
+    
+    -- Connection Management
+    local connections = {
+        UserInputService.InputBegan:Connect(function(input, gameProcessed)
+            if not gameProcessed then
+                if input.KeyCode == Settings.UI.ToggleKey then
+                    OrionLib:ToggleUI()
+                elseif input.KeyCode == Settings.UI.MinimizeKey then
+                    -- Implement UI minimize
+                elseif input.KeyCode == Settings.UI.FastClose then
+                    OrionLib:Destroy()
+                end
+            end
+        end),
+        
+        Players.PlayerAdded:Connect(function(player)
+            InitializeESP(player)
+            PlayerManager.UpdateTargetList()
+        end),
+        
+        Players.PlayerRemoving:Connect(function(player)
+            CleanupESP(player)
+            PlayerManager.UpdateTargetList()
+        end),
+        
+        game:GetService("CoreGui").ChildRemoved:Connect(function(child)
+            if child.Name == "OrionLib" then
+                CleanupAll()
+            end
+        end)
+    }
+    
+    -- Auto-save configuration
+    task.spawn(function()
+        while true do
+            if Settings.Config.AutoSave then
+                Config.SaveConfig()
+            end
+            task.wait(Settings.Config.SaveInterval)
+        end
+    end)
+    
+    -- Initial Setup
+    Config.LoadConfig()
+    for _, player in pairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer then
+            InitializeESP(player)
+        end
+    end
+    
+    -- Return cleanup function
+    return function()
+        for _, connection in pairs(connections) do
+            connection:Disconnect()
+        end
+        
+        CleanupESP()
+        CleanupHitboxes()
+        Config.SaveConfig()
+        OrionLib:Destroy()
+    end
+end
+
+-- Start everything
+local cleanup = SetupMainSystems()
+
+-- Success Message
+OrionLib:MakeNotification({
+    Name = "Pass The Bomb v1.2.15",
+    Content = "Script loaded successfully!",
+    Image = "rbxassetid://7733955740",
+    Time = 5
+})
