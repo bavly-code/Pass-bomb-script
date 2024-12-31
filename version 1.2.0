@@ -1,0 +1,389 @@
+local OrionLib = loadstring(game:HttpGet(('https://raw.githubusercontent.com/shlexware/Orion/main/source')))()
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local TweenService = game:GetService("TweenService")
+local LocalPlayer = Players.LocalPlayer
+local Camera = workspace.CurrentCamera
+
+-- Core Settings
+getgenv().Settings = {
+    ESP = {
+        Enabled = false,
+        BoxESP = false,
+        ChamsESP = false,
+        TeamCheck = false,
+        ShowDistance = false,
+        ShowNames = false,
+        BoxColor = Color3.fromRGB(255, 0, 0),
+        ChamsColor = Color3.fromRGB(255, 0, 0),
+        FillTransparency = 0.5,
+        OutlineTransparency = 0
+    },
+    Hitbox = {
+        Combat = {
+            Enabled = false,
+            HeadSize = Vector3.new(12, 12, 12),
+            BodySize = Vector3.new(5, 5, 5),
+            TeamCheck = false,
+            Transparency = 0.7,
+            Color = Color3.fromRGB(0, 0, 255)
+        },
+        Touch = {
+            Enabled = false,
+            Size = Vector3.new(10, 10, 10),
+            Transparency = 0.7
+        },
+        PartSpecific = {
+            Head = false,
+            Torso = false,
+            Arms = false,
+            Legs = false
+        }
+    },
+    Movement = {
+        WalkSpeed = 16,
+        JumpPower = 50,
+        TPWalk = {
+            Enabled = false,
+            Speed = 3
+        },
+        Noclip = false,
+        InfiniteJump = false,
+        LoopWS = false,
+        LoopJP = false
+    },
+    AutoPass = {
+        Enabled = false,
+        SmoothTP = true,
+        ReturnToSpawn = true,
+        PassDelay = 0.1,
+        DetectionRange = 15
+    }
+}
+
+-- ESP Cache
+local ESPCache = {}
+local ChamsCache = {}
+
+-- ESP Functions
+local function CreateBox(player)
+    local box = Drawing.new("Square")
+    box.Visible = false
+    box.Color = Settings.ESP.BoxColor
+    box.Thickness = 1
+    box.Transparency = 1
+    box.Filled = false
+    
+    local boxOutline = Drawing.new("Square")
+    boxOutline.Visible = false
+    boxOutline.Color = Color3.new(0, 0, 0)
+    boxOutline.Thickness = 3
+    boxOutline.Transparency = 1
+    boxOutline.Filled = false
+    
+    local name = Drawing.new("Text")
+    name.Visible = false
+    name.Center = true
+    name.Outline = true
+    name.Font = 2
+    name.Size = 13
+    name.Color = Settings.ESP.BoxColor
+    
+    ESPCache[player] = {
+        Box = box,
+        Outline = boxOutline,
+        Name = name
+    }
+end
+
+local function CreateChams(player)
+    local highlight = Instance.new("Highlight")
+    highlight.FillColor = Settings.ESP.ChamsColor
+    highlight.OutlineColor = Color3.new(1, 1, 1)
+    highlight.FillTransparency = Settings.ESP.FillTransparency
+    highlight.OutlineTransparency = Settings.ESP.OutlineTransparency
+    highlight.Parent = game.CoreGui
+    
+    ChamsCache[player] = highlight
+end
+
+-- Hitbox Functions
+local function UpdateCombatHitbox(player)
+    if player.Character then
+        local head = player.Character:FindFirstChild("Head")
+        local humanoidRootPart = player.Character:FindFirstChild("HumanoidRootPart")
+        
+        if head then
+            head.Size = Settings.Hitbox.Combat.HeadSize
+            head.Transparency = Settings.Hitbox.Combat.Transparency
+            head.CanCollide = false
+        end
+        
+        if humanoidRootPart then
+            humanoidRootPart.Size = Settings.Hitbox.Combat.BodySize
+            humanoidRootPart.Transparency = Settings.Hitbox.Combat.Transparency
+            humanoidRootPart.CanCollide = false
+        end
+    end
+end
+
+local function UpdateTouchHitbox(player)
+    if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+        local hrp = player.Character.HumanoidRootPart
+        hrp.Size = Settings.Hitbox.Touch.Size
+        hrp.Transparency = Settings.Hitbox.Touch.Transparency
+        hrp.CanCollide = false
+    end
+end
+
+-- Movement Functions
+local function UpdateMovement()
+    if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
+        local humanoid = LocalPlayer.Character.Humanoid
+        
+        if Settings.Movement.LoopWS then
+            humanoid.WalkSpeed = Settings.Movement.WalkSpeed
+        end
+        
+        if Settings.Movement.LoopJP then
+            humanoid.JumpPower = Settings.Movement.JumpPower
+        end
+    end
+end
+
+local function TPWalk()
+    if Settings.Movement.TPWalk.Enabled and LocalPlayer.Character then
+        local hrp = LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+        local humanoid = LocalPlayer.Character:FindFirstChild("Humanoid")
+        
+        if hrp and humanoid and humanoid.MoveDirection.Magnitude > 0 then
+            hrp.CFrame = hrp.CFrame + humanoid.MoveDirection * Settings.Movement.TPWalk.Speed
+        end
+    end
+end
+
+-- Auto Pass Functions
+local function GetClosestPlayer()
+    local closest = nil
+    local maxDistance = math.huge
+    
+    for _, player in pairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer and player.Character then
+            local distance = (LocalPlayer.Character.HumanoidRootPart.Position - player.Character.HumanoidRootPart.Position).Magnitude
+            if distance < maxDistance then
+                maxDistance = distance
+                closest = player
+            end
+        end
+    end
+    
+    return closest
+end
+
+local function HasBomb()
+    return LocalPlayer.Character and (LocalPlayer.Character:FindFirstChild("Bomb") or LocalPlayer.Character:FindFirstChild("Tagged"))
+end
+
+local function AutoPass()
+    if Settings.AutoPass.Enabled and HasBomb() then
+        local target = GetClosestPlayer()
+        if target and target.Character then
+            local targetPos = target.Character.HumanoidRootPart.Position
+            
+            if Settings.AutoPass.SmoothTP then
+                local tween = TweenService:Create(
+                    LocalPlayer.Character.HumanoidRootPart,
+                    TweenInfo.new(Settings.AutoPass.PassDelay, Enum.EasingStyle.Quad),
+                    {CFrame = CFrame.new(targetPos)}
+                )
+                tween:Play()
+            else
+                LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(targetPos)
+            end
+        end
+    end
+end
+
+-- Create Window
+local Window = OrionLib:MakeWindow({
+    Name = "Universal Script v1.2.0",
+    HidePremium = false,
+    SaveConfig = true,
+    ConfigFolder = "UniversalConfig",
+    IntroEnabled = true,
+    IntroText = "Universal Script v1.2.0"
+})
+
+-- Create Tabs
+local VisualTab = Window:MakeTab({Name = "Visuals", Icon = "rbxassetid://4483345998"})
+local HitboxTab = Window:MakeTab({Name = "Hitbox", Icon = "rbxassetid://4483345998"})
+local MovementTab = Window:MakeTab({Name = "Movement", Icon = "rbxassetid://4483345998"})
+local AutoTab = Window:MakeTab({Name = "Auto Features", Icon = "rbxassetid://4483345998"})
+local MiscTab = Window:MakeTab({Name = "Misc", Icon = "rbxassetid://4483345998"})
+
+-- Visual Tab
+VisualTab:AddToggle({
+    Name = "Box ESP",
+    Default = false,
+    Callback = function(Value)
+        Settings.ESP.BoxESP = Value
+    end
+})
+
+VisualTab:AddToggle({
+    Name = "Chams ESP",
+    Default = false,
+    Callback = function(Value)
+        Settings.ESP.ChamsESP = Value
+    end
+})
+
+VisualTab:AddToggle({
+    Name = "Show Names",
+    Default = false,
+    Callback = function(Value)
+        Settings.ESP.ShowNames = Value
+    end
+})
+
+VisualTab:AddColorpicker({
+    Name = "ESP Color",
+    Default = Color3.fromRGB(255, 0, 0),
+    Callback = function(Value)
+        Settings.ESP.BoxColor = Value
+        Settings.ESP.ChamsColor = Value
+    end
+})
+
+-- Hitbox Tab
+HitboxTab:AddToggle({
+    Name = "Combat Hitbox",
+    Default = false,
+    Callback = function(Value)
+        Settings.Hitbox.Combat.Enabled = Value
+    end
+})
+
+HitboxTab:AddSlider({
+    Name = "Head Size",
+    Min = 1,
+    Max = 50,
+    Default = 12,
+    Color = Color3.fromRGB(255,255,255),
+    Increment = 1,
+    ValueName = "studs",
+    Callback = function(Value)
+        Settings.Hitbox.Combat.HeadSize = Vector3.new(Value, Value, Value)
+    end
+})
+
+-- Movement Tab
+MovementTab:AddSlider({
+    Name = "Walk Speed",
+    Min = 16,
+    Max = 500,
+    Default = 16,
+    Color = Color3.fromRGB(255,255,255),
+    Increment = 1,
+    ValueName = "speed",
+    Callback = function(Value)
+        Settings.Movement.WalkSpeed = Value
+    end
+})
+
+MovementTab:AddToggle({
+    Name = "Loop WalkSpeed",
+    Default = false,
+    Callback = function(Value)
+        Settings.Movement.LoopWS = Value
+    end
+})
+
+MovementTab:AddToggle({
+    Name = "TP Walk",
+    Default = false,
+    Callback = function(Value)
+        Settings.Movement.TPWalk.Enabled = Value
+    end
+})
+
+MovementTab:AddToggle({
+    Name = "Noclip",
+    Default = false,
+    Callback = function(Value)
+        Settings.Movement.Noclip = Value
+    end
+})
+
+-- Auto Features Tab
+AutoTab:AddToggle({
+    Name = "Auto Pass",
+    Default = false,
+    Callback = function(Value)
+        Settings.AutoPass.Enabled = Value
+    end
+})
+
+-- Main Loops
+RunService.RenderStepped:Connect(function()
+    if Settings.ESP.BoxESP then
+        for player, drawings in pairs(ESPCache) do
+            -- Update ESP
+        end
+    end
+    
+    if Settings.Hitbox.Combat.Enabled then
+        for _, player in pairs(Players:GetPlayers()) do
+            if player ~= LocalPlayer then
+                UpdateCombatHitbox(player)
+            end
+        end
+    end
+    
+    UpdateMovement()
+    TPWalk()
+    AutoPass()
+end)
+
+-- Noclip
+RunService.Stepped:Connect(function()
+    if Settings.Movement.Noclip then
+        if LocalPlayer.Character then
+            for _, part in pairs(LocalPlayer.Character:GetDescendants()) do
+                if part:IsA("BasePart") then
+                    part.CanCollide = false
+                end
+            end
+        end
+    end
+end)
+
+-- Infinite Jump
+UserInputService.JumpRequest:Connect(function()
+    if Settings.Movement.InfiniteJump then
+        LocalPlayer.Character:FindFirstChildOfClass('Humanoid'):ChangeState("Jumping")
+    end
+end)
+
+-- Toggle UI with Right Control
+UserInputService.InputBegan:Connect(function(input)
+    if input.KeyCode == Enum.KeyCode.RightControl then
+        OrionLib:ToggleUI()
+    end
+end)
+
+-- Cleanup
+game:GetService("CoreGui").ChildRemoved:Connect(function(child)
+    if child.Name == "OrionLib" then
+        OrionLib:Destroy()
+        for _, drawings in pairs(ESPCache) do
+            for _, drawing in pairs(drawings) do
+                drawing:Remove()
+            end
+        end
+        for _, highlight in pairs(ChamsCache) do
+            highlight:Destroy()
+        end
+    end
+end)
