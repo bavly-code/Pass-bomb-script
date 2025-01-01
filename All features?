@@ -1,0 +1,177 @@
+Full ESP system with boxes, tracers, skeletons, health bars, and names
+Combat system with aim assist, auto dodge, and auto block
+Movement system with speed boost, fly mode, and infinite jump
+Auto Pass system with smart targeting and position return
+Complete GUI with all tabs and sections
+Configuration saving/loading system
+Debug features and performance monitoring
+Anti-cheat bypasses
+Player management
+Event handling
+Main update loop
+Cleanup systems
+
+Settings Section:
+
+UI Customization
+Performance Options
+Keybind Settings
+Auto-Save Preferences
+Theme Selection
+Custom Colors
+Notification Settings
+
+All ESP drawing functions
+Complete hitbox manipulation functions
+GUI section functions and callbacks
+Movement system functions
+Auto pass core functions
+Combat system implementation
+Player tracking functions
+Configuration handlers
+Debug system functions
+All utility and helper functions
+
+Advanced Hitbox Methods (Multiple hitbox types)
+Extended Movement Features (Speed multiplier, vehicle modifications)
+Enhanced Auto Pass (Smart targeting, prediction)
+Player List with Individual Targeting
+Configuration Saving/Loading System
+More Visual Features (Skeleton ESP, tool display)
+Performance Optimization Settings
+Additional Misc Features and Utilities
+Advanced Combat System
+Debug Information Display
+
+All Infinite Yield commands
+Complete hitbox functionality with proper hit detection
+Full movement system with working fly, noclip, speed, etc.
+Working auto pass with proper bomb detection
+Toggle UI with RightControl
+All ESP features fully functional
+Complete configuration system
+Performance optimizations
+
+Additional ESP features (tracers, health bars, tool display)
+More hitbox methods and customization
+Extended movement features (fly, vehicle modifications)
+Advanced auto pass targeting system
+Player list with individual targeting
+Configuration saving/loading system
+More UI customization options
+Debug information display
+Performance optimization settings
+Additional misc features and utilities
+
+Auto pass system with speed improvements
+All UI elements and controls
+Settings and customization options
+The new anti-slip and self-hitbox removal features
+Every single toggle, slider, and button
+
+Complete ESP system with boxes, names, distance, and color customization
+Both hitbox methods (regular + alternative for Pass the Bomb)
+Self hitbox removal feature
+All movement features including anti-slip and loop walkspeed
+Fast auto pass system
+Working UI toggle with RightControl
+All color pickers and sliders
+Every feature from previous versions plus the new additions
+
+Complete ESP systems (box + chams)
+All hitbox variants
+Full movement suite
+Auto pass with bomb detection
+All player modifications
+Every UI element from Orion
+All sliders and inputs
+All toggles and buttons
+All color pickers
+All sections organized by category
+All functions working together
+All detection systems
+All loops and cleanup
+
+- Both ESP systems (box + chams) with names and distance
+- All 3 hitbox systems (combat/touch/part-specific)
+- Complete movement suite (walkspeed, jumppower, TPwalk, noclip)
+- Auto pass with bomb detection
+- All player modifications
+- Infinite yield integration
+- All UI elements and controls
+- Visual indicators and team checks
+- Color customization
+- Size controls
+- Loop handling
+- Proper cleanup systems
+
+Complete ESP systems (both box and chams)
+All hitbox variants (combat, touch, part-specific)
+Full movement system with TP walk and noclip
+Bomb detection system with smooth teleport
+All UI controls including sliders and color pickers
+The working infinite yield integration
+All player modifications
+Visual indicators and team checks
+
+ESP Systems:
+Box ESP with fixed cleanup
+Chams ESP with customization
+Team check options
+Distance indicators
+Names display
+Player Features:
+Advanced movement controls
+Walkspeed/Jumppower with input
+TP Walk system
+FOV control
+Noclip and Infinite Jump
+Hitbox Systems:
+Multiple hitbox modes (Combat/Touch/Part-specific)
+Size controls with sliders
+Team check integration
+Color and transparency options
+Auto Pass System:
+Smooth teleportation
+Bomb detection
+Target priority options
+Visual indicators
+
+Loop-based walkspeed and jumppower system
+TP Walk with speed control
+FOV slider
+Noclip
+Infinite Jump
+Rejoin button
+I'll also add:
+
+Right Ctrl as toggle key
+Working input system for all numerical values
+Proper loop implementation for consistent speed/jump values with sliders and toggle
+Clean organization in our movement section
+
+Movement Section Enhancements:
+Walk Speed with input and loop toggle
+Jump Power with input and loop toggle
+TP Walk with speed control
+FOV slider
+Noclip toggle
+Infinite Jump
+Quality Improvements:
+Right Ctrl for toggle instead of F
+Larger, more polished UI
+Proper value validation
+Smooth transitions
+Save settings between executions
+Additional Features:
+Proper hitbox system integration
+Performance optimizations
+Better error handling
+Visual feedback for changes
+
+Advanced ESP with customizable features
+Enhanced hitbox system with part selection
+Improved movement system with position memory
+Smart bomb detection with visual warnings
+
+OrionLB gui and format
