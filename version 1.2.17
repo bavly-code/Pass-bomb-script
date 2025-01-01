@@ -1,0 +1,1433 @@
+-- Pass The Bomb v1.2.17
+local OrionLib = loadstring(game:HttpGet(('https://raw.githubusercontent.com/shlexware/Orion/main/source')))()
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local TweenService = game:GetService("TweenService")
+local HttpService = game:GetService("HttpService")
+local CoreGui = game:GetService("CoreGui")
+local VirtualUser = game:GetService("VirtualUser")
+local LocalPlayer = Players.LocalPlayer
+local Camera = workspace.CurrentCamera
+local Mouse = LocalPlayer:GetMouse()
+
+-- Complete Settings System
+getgenv().Settings = {
+    ESP = {
+        Enabled = false,
+        BoxESP = false,
+        ChamsESP = false,
+        TracerESP = false,
+        SkeletonESP = false,
+        HeadDotESP = false,
+        HealthBarESP = false,
+        ToolESP = false,
+        TeamCheck = false,
+        ShowDistance = false,
+        ShowNames = false,
+        ShowHealth = false,
+        RainbowESP = false,
+        BoxColor = Color3.fromRGB(255,0,0),
+        ChamsColor = Color3.fromRGB(255,0,0),
+        TracerColor = Color3.fromRGB(255,0,0),
+        SkeletonColor = Color3.fromRGB(255,255,255),
+        HeadDotColor = Color3.fromRGB(255,0,0),
+        HealthBarColor = Color3.fromRGB(0,255,0),
+        FillTransparency = 0.5,
+        OutlineTransparency = 0,
+        TracerOrigin = "Bottom",
+        RenderDistance = 1000,
+        TextSize = 13,
+        TextFont = 2,
+        BoxThickness = 1,
+        TracerThickness = 1,
+        SkeletonThickness = 1
+    },
+    Combat = {
+        AimAssist = {
+            Enabled = false,
+            Strength = 0.5,
+            FOV = 100,
+            Smoothness = 0.5,
+            PredictMovement = true,
+            VisibilityCheck = true,
+            TeamCheck = false,
+            Priority = "Distance"
+        },
+        AutoDodge = false,
+        AutoBlock = false,
+        AutoHeal = false,
+        HealThreshold = 50,
+        SafeDistance = 10,
+        PreferredWeapons = {"Sword", "Gun", "Bomb"}
+    },
+    Movement = {
+        SpeedBoost = false,
+        WalkSpeed = 16,
+        SpeedMultiplier = 1,
+        JumpPower = 50,
+        InfiniteJump = false,
+        HeightBoost = 0,
+        Fly = {
+            Enabled = false,
+            Speed = 50,
+            Smooth = false,
+            NoClip = true
+        }
+    },
+    AutoPass = {
+        Enabled = false,
+        SmoothTP = true,
+        ReturnToSpawn = true,
+        PassDelay = 0.05,
+        DetectionRange = 15,
+        AvoidRepeat = true,
+        SmartTarget = true,
+        PredictMovement = false,
+        TargetPriority = "Distance",
+        SafeMode = false
+    },
+    Config = {
+        AutoSave = true,
+        SaveInterval = 60,
+        CurrentConfig = "default",
+        ConfigVersion = "1.2.17",
+        BackupConfigs = true,
+        ExportSettings = false
+    },
+    Debug = {
+        Enabled = false,
+        ShowFPS = false,
+        ShowPing = false,
+        LogActions = false,
+        SaveLogs = false
+    }
+}
+
+-- Cache Systems
+local ESPCache = {
+    Boxes = {},
+    Tracers = {},
+    Names = {},
+    Health = {},
+    Distance = {},
+    Skeletons = {},
+    HeadDots = {},
+    Tools = {},
+    CustomText = {},
+    HighlightCache = {}
+}
+
+local ChamsCache = {}
+local HitboxCache = {}
+local ConnectionCache = {}
+local flyBP = nil
+-- Complete Utility and Core Functions
+local Utility = {
+    IsAlive = function(player)
+        return player and player.Character and 
+               player.Character:FindFirstChild("Humanoid") and 
+               player.Character:FindFirstChild("HumanoidRootPart") and
+               player.Character.Humanoid.Health > 0
+    end,
+    
+    GetDistance = function(pos1, pos2)
+        return (pos1 - pos2).Magnitude
+    end,
+    
+    IsVisible = function(part)
+        local ray = Ray.new(Camera.CFrame.Position, (part.Position - Camera.CFrame.Position).Unit * 2048)
+        local hit = workspace:FindPartOnRayWithIgnoreList(ray, {LocalPlayer.Character, Camera})
+        return not hit
+    end,
+    
+    GetClosestPlayer = function(maxDistance)
+        local closest, minDistance = nil, maxDistance or math.huge
+        for _, player in pairs(Players:GetPlayers()) do
+            if player ~= LocalPlayer and Utility.IsAlive(player) then
+                local distance = Utility.GetDistance(
+                    LocalPlayer.Character.HumanoidRootPart.Position,
+                    player.Character.HumanoidRootPart.Position
+                )
+                if distance < minDistance then
+                    closest = player
+                    minDistance = distance
+                end
+            end
+        end
+        return closest, minDistance
+    end,
+    
+    CreateDrawing = function(type, properties)
+        local drawing = Drawing.new(type)
+        for property, value in pairs(properties) do
+            drawing[property] = value
+        end
+        return drawing
+    end,
+    
+    DestroyDrawing = function(drawing)
+        if drawing and drawing.Remove then
+            drawing:Remove()
+        end
+    end,
+    
+    WorldToViewport = function(position)
+        local screenPosition, onScreen = Camera:WorldToViewportPoint(position)
+        return Vector2.new(screenPosition.X, screenPosition.Y), onScreen, screenPosition.Z
+    end,
+    
+    GetBoundingBox = function(character)
+        local minX, minY, minZ = math.huge, math.huge, math.huge
+        local maxX, maxY, maxZ = -math.huge, -math.huge, -math.huge
+        
+        for _, part in pairs(character:GetChildren()) do
+            if part:IsA("BasePart") then
+                local size = part.Size
+                local cf = part.CFrame
+                
+                local corners = {
+                    cf * CFrame.new(size.X/2, size.Y/2, size.Z/2),
+                    cf * CFrame.new(size.X/2, size.Y/2, -size.Z/2),
+                    cf * CFrame.new(size.X/2, -size.Y/2, size.Z/2),
+                    cf * CFrame.new(size.X/2, -size.Y/2, -size.Z/2),
+                    cf * CFrame.new(-size.X/2, size.Y/2, size.Z/2),
+                    cf * CFrame.new(-size.X/2, size.Y/2, -size.Z/2),
+                    cf * CFrame.new(-size.X/2, -size.Y/2, size.Z/2),
+                    cf * CFrame.new(-size.X/2, -size.Y/2, -size.Z/2)
+                }
+                
+                for _, corner in pairs(corners) do
+                    local pos = corner.Position
+                    minX = math.min(minX, pos.X)
+                    minY = math.min(minY, pos.Y)
+                    minZ = math.min(minZ, pos.Z)
+                    maxX = math.max(maxX, pos.X)
+                    maxY = math.max(maxY, pos.Y)
+                    maxZ = math.max(maxZ, pos.Z)
+                end
+            end
+        end
+        
+        return Vector3.new(minX, minY, minZ), Vector3.new(maxX, maxY, maxZ)
+    end,
+    
+    GetCharacterParts = function(character)
+        local parts = {}
+        
+        if character then
+            parts.Head = character:FindFirstChild("Head")
+            parts.HumanoidRootPart = character:FindFirstChild("HumanoidRootPart")
+            parts.Torso = character:FindFirstChild("UpperTorso") or character:FindFirstChild("Torso")
+            parts.LowerTorso = character:FindFirstChild("LowerTorso")
+            parts.LeftUpperArm = character:FindFirstChild("LeftUpperArm")
+            parts.LeftLowerArm = character:FindFirstChild("LeftLowerArm")
+            parts.RightUpperArm = character:FindFirstChild("RightUpperArm")
+            parts.RightLowerArm = character:FindFirstChild("RightLowerArm")
+            parts.LeftUpperLeg = character:FindFirstChild("LeftUpperLeg")
+            parts.LeftLowerLeg = character:FindFirstChild("LeftLowerLeg")
+            parts.RightUpperLeg = character:FindFirstChild("RightUpperLeg")
+            parts.RightLowerLeg = character:FindFirstChild("RightLowerLeg")
+        end
+        
+        return parts
+    end,
+    
+    GetAimTarget = function()
+        local closestPlayer = nil
+        local shortestDistance = Settings.Combat.AimAssist.FOV
+        local mousePos = Vector2.new(Mouse.X, Mouse.Y)
+        
+        for _, player in pairs(Players:GetPlayers()) do
+            if player ~= LocalPlayer and Utility.IsAlive(player) then
+                if Settings.Combat.AimAssist.TeamCheck and player.Team == LocalPlayer.Team then
+                    continue
+                end
+                
+                local character = player.Character
+                local humanoidRootPart = character.HumanoidRootPart
+                local head = character.Head
+                
+                if Settings.Combat.AimAssist.VisibilityCheck and not Utility.IsVisible(head) then
+                    continue
+                end
+                
+                local screenPos, onScreen = Utility.WorldToViewport(head.Position)
+                if onScreen then
+                    local distance = (mousePos - screenPos).Magnitude
+                    if distance < shortestDistance then
+                        closestPlayer = player
+                        shortestDistance = distance
+                    end
+                end
+            end
+        end
+        
+        return closestPlayer
+    end,
+    
+    HasBomb = function()
+        local character = LocalPlayer.Character
+        if character then
+            for _, tool in pairs(character:GetChildren()) do
+                if tool:IsA("Tool") and tool.Name:lower():match("bomb") then
+                    return true
+                end
+            end
+        end
+        return false
+    end,
+    
+    GetBestTarget = function()
+        local bestTarget = nil
+        local bestScore = -math.huge
+        
+        for _, player in pairs(Players:GetPlayers()) do
+            if player ~= LocalPlayer and Utility.IsAlive(player) then
+                local score = 0
+                local distance = Utility.GetDistance(
+                    LocalPlayer.Character.HumanoidRootPart.Position,
+                    player.Character.HumanoidRootPart.Position
+                )
+                
+                if distance > Settings.AutoPass.DetectionRange then
+                    continue
+                end
+                
+                -- Score calculation based on various factors
+                score = score + (Settings.AutoPass.DetectionRange - distance)
+                
+                if Settings.AutoPass.SmartTarget then
+                    local health = player.Character.Humanoid.Health
+                    score = score + (100 - health)
+                    
+                    if player.Character:FindFirstChildOfClass("Tool") then
+                        score = score - 20
+                    end
+                end
+                
+                if score > bestScore then
+                    bestTarget = player
+                    bestScore = score
+                end
+            end
+        end
+        
+        return bestTarget
+    end
+}
+-- Complete ESP System Implementation
+local function InitializeESP()
+    for _, player in pairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer then
+            -- Box ESP
+            ESPCache.Boxes[player] = {
+                Box = Utility.CreateDrawing("Square", {
+                    Visible = false,
+                    Color = Settings.ESP.BoxColor,
+                    Thickness = Settings.ESP.BoxThickness,
+                    Filled = false,
+                    Transparency = 1
+                }),
+                Outline = Utility.CreateDrawing("Square", {
+                    Visible = false,
+                    Color = Color3.new(0,0,0),
+                    Thickness = Settings.ESP.BoxThickness + 2,
+                    Filled = false,
+                    Transparency = 1
+                })
+            }
+            
+            -- Skeleton ESP
+            ESPCache.Skeletons[player] = {
+                Head = Utility.CreateDrawing("Line", {
+                    Visible = false,
+                    Color = Settings.ESP.SkeletonColor,
+                    Thickness = Settings.ESP.SkeletonThickness,
+                    Transparency = 1
+                }),
+                UpperTorso = Utility.CreateDrawing("Line", {
+                    Visible = false,
+                    Color = Settings.ESP.SkeletonColor,
+                    Thickness = Settings.ESP.SkeletonThickness,
+                    Transparency = 1
+                }),
+                LowerTorso = Utility.CreateDrawing("Line", {
+                    Visible = false,
+                    Color = Settings.ESP.SkeletonColor,
+                    Thickness = Settings.ESP.SkeletonThickness,
+                    Transparency = 1
+                }),
+                LeftUpperArm = Utility.CreateDrawing("Line", {
+                    Visible = false,
+                    Color = Settings.ESP.SkeletonColor,
+                    Thickness = Settings.ESP.SkeletonThickness,
+                    Transparency = 1
+                }),
+                LeftLowerArm = Utility.CreateDrawing("Line", {
+                    Visible = false,
+                    Color = Settings.ESP.SkeletonColor,
+                    Thickness = Settings.ESP.SkeletonThickness,
+                    Transparency = 1
+                }),
+                RightUpperArm = Utility.CreateDrawing("Line", {
+                    Visible = false,
+                    Color = Settings.ESP.SkeletonColor,
+                    Thickness = Settings.ESP.SkeletonThickness,
+                    Transparency = 1
+                }),
+                RightLowerArm = Utility.CreateDrawing("Line", {
+                    Visible = false,
+                    Color = Settings.ESP.SkeletonColor,
+                    Thickness = Settings.ESP.SkeletonThickness,
+                    Transparency = 1
+                }),
+                LeftUpperLeg = Utility.CreateDrawing("Line", {
+                    Visible = false,
+                    Color = Settings.ESP.SkeletonColor,
+                    Thickness = Settings.ESP.SkeletonThickness,
+                    Transparency = 1
+                }),
+                LeftLowerLeg = Utility.CreateDrawing("Line", {
+                    Visible = false,
+                    Color = Settings.ESP.SkeletonColor,
+                    Thickness = Settings.ESP.SkeletonThickness,
+                    Transparency = 1
+                }),
+                RightUpperLeg = Utility.CreateDrawing("Line", {
+                    Visible = false,
+                    Color = Settings.ESP.SkeletonColor,
+                    Thickness = Settings.ESP.SkeletonThickness,
+                    Transparency = 1
+                }),
+                RightLowerLeg = Utility.CreateDrawing("Line", {
+                    Visible = false,
+                    Color = Settings.ESP.SkeletonColor,
+                    Thickness = Settings.ESP.SkeletonThickness,
+                    Transparency = 1
+                })
+            }
+            
+            -- Tracer ESP
+            ESPCache.Tracers[player] = Utility.CreateDrawing("Line", {
+                Visible = false,
+                Color = Settings.ESP.TracerColor,
+                Thickness = Settings.ESP.TracerThickness,
+                Transparency = 1
+            })
+            
+            -- Head Dot ESP
+            ESPCache.HeadDots[player] = Utility.CreateDrawing("Circle", {
+                Visible = false,
+                Color = Settings.ESP.HeadDotColor,
+                Thickness = 1,
+                NumSides = 30,
+                Radius = 3,
+                Filled = true,
+                Transparency = 1
+            })
+            
+            -- Health Bar ESP
+            ESPCache.Health[player] = {
+                Bar = Utility.CreateDrawing("Square", {
+                    Visible = false,
+                    Color = Settings.ESP.HealthBarColor,
+                    Thickness = 1,
+                    Filled = true,
+                    Transparency = 1
+                }),
+                Background = Utility.CreateDrawing("Square", {
+                    Visible = false,
+                    Color = Color3.new(0,0,0),
+                    Thickness = 1,
+                    Filled = true,
+                    Transparency = 1
+                })
+            }
+            
+            -- Name ESP
+            ESPCache.Names[player] = Utility.CreateDrawing("Text", {
+                Visible = false,
+                Color = Settings.ESP.BoxColor,
+                Size = Settings.ESP.TextSize,
+                Center = true,
+                Outline = true,
+                Font = Settings.ESP.TextFont,
+                Transparency = 1
+            })
+            
+            -- Distance ESP
+            ESPCache.Distance[player] = Utility.CreateDrawing("Text", {
+                Visible = false,
+                Color = Settings.ESP.BoxColor,
+                Size = Settings.ESP.TextSize,
+                Center = true,
+                Outline = true,
+                Font = Settings.ESP.TextFont,
+                Transparency = 1
+            })
+            
+            -- Tool ESP
+            ESPCache.Tools[player] = Utility.CreateDrawing("Text", {
+                Visible = false,
+                Color = Settings.ESP.BoxColor,
+                Size = Settings.ESP.TextSize,
+                Center = true,
+                Outline = true,
+                Font = Settings.ESP.TextFont,
+                Transparency = 1
+            })
+            
+            -- Chams ESP
+            if Settings.ESP.ChamsESP then
+                local highlight = Instance.new("Highlight")
+                highlight.FillColor = Settings.ESP.ChamsColor
+                highlight.OutlineColor = Color3.new(1,1,1)
+                highlight.FillTransparency = Settings.ESP.FillTransparency
+                highlight.OutlineTransparency = Settings.ESP.OutlineTransparency
+                highlight.Adornee = player.Character
+                highlight.Parent = CoreGui
+                
+                ChamsCache[player] = highlight
+            end
+        end
+    end
+end
+
+-- Complete Combat System Implementation
+local CombatSystem = {
+    UpdateAimAssist = function()
+        if Settings.Combat.AimAssist.Enabled then
+            local target = Utility.GetAimTarget()
+            if target then
+                local targetPos = target.Character.Head.Position
+                if Settings.Combat.AimAssist.PredictMovement then
+                    targetPos = targetPos + (target.Character.HumanoidRootPart.Velocity * 0.1)
+                end
+                
+                local targetCFrame = Camera.CFrame:Lerp(
+                    CFrame.new(Camera.CFrame.Position, targetPos),
+                    Settings.Combat.AimAssist.Strength * Settings.Combat.AimAssist.Smoothness
+                )
+                
+                Camera.CFrame = targetCFrame
+            end
+        end
+    end,
+    
+    AutoBlock = function()
+        if Settings.Combat.AutoBlock then
+            local closestPlayer = Utility.GetClosestPlayer(Settings.Combat.SafeDistance)
+            if closestPlayer then
+                local character = LocalPlayer.Character
+                local tool = character:FindFirstChildOfClass("Tool")
+                if tool and tool:FindFirstChild("Block") then
+                    tool.Block:FireServer()
+                end
+            end
+        end
+    end,
+    
+    AutoHeal = function()
+        if Settings.Combat.AutoHeal then
+            local character = LocalPlayer.Character
+            local humanoid = character:FindFirstChild("Humanoid")
+            if humanoid and humanoid.Health <= Settings.Combat.HealThreshold then
+                for _, item in pairs(character:GetChildren()) do
+                    if item:IsA("Tool") and item.Name:lower():match("heal") then
+                        item:Activate()
+                        break
+                    end
+                end
+            end
+        end
+    end,
+    
+    AutoDodge = function()
+        if Settings.Combat.AutoDodge then
+            local closestPlayer = Utility.GetClosestPlayer(Settings.Combat.SafeDistance)
+            if closestPlayer then
+                local character = LocalPlayer.Character
+                local humanoidRootPart = character.HumanoidRootPart
+                local direction = (humanoidRootPart.Position - closestPlayer.Character.HumanoidRootPart.Position).Unit
+                humanoidRootPart.CFrame = humanoidRootPart.CFrame + direction * 5
+            end
+        end
+    end,
+    
+    UpdateCombat = function()
+        CombatSystem.UpdateAimAssist()
+        CombatSystem.AutoBlock()
+        CombatSystem.AutoHeal()
+        CombatSystem.AutoDodge()
+    end
+}
+-- Complete Movement System Implementation
+local MovementSystem = {
+    UpdateWalkSpeed = function()
+        if Utility.IsAlive(LocalPlayer) then
+            local humanoid = LocalPlayer.Character.Humanoid
+            if Settings.Movement.SpeedBoost then
+                humanoid.WalkSpeed = Settings.Movement.WalkSpeed * Settings.Movement.SpeedMultiplier
+            else
+                humanoid.WalkSpeed = Settings.Movement.WalkSpeed
+            end
+        end
+    end,
+
+    UpdateJumpPower = function()
+        if Utility.IsAlive(LocalPlayer) then
+            local humanoid = LocalPlayer.Character.Humanoid
+            humanoid.JumpPower = Settings.Movement.JumpPower + Settings.Movement.HeightBoost
+        end
+    end,
+
+    HandleFly = function()
+        if Settings.Movement.Fly.Enabled then
+            local character = LocalPlayer.Character
+            local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
+            
+            if not flyBP then
+                flyBP = Instance.new("BodyPosition")
+                flyBP.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
+                flyBP.P = 10000
+                flyBP.Position = humanoidRootPart.Position
+                flyBP.Parent = humanoidRootPart
+            end
+            
+            local forward = Camera.CFrame.LookVector
+            local right = Camera.CFrame.RightVector
+            local up = Camera.CFrame.UpVector
+            local pos = Vector3.new(0,0,0)
+            
+            -- Movement Controls
+            if UserInputService:IsKeyDown(Enum.KeyCode.W) then
+                pos = pos + forward
+            end
+            if UserInputService:IsKeyDown(Enum.KeyCode.S) then
+                pos = pos - forward
+            end
+            if UserInputService:IsKeyDown(Enum.KeyCode.D) then
+                pos = pos + right
+            end
+            if UserInputService:IsKeyDown(Enum.KeyCode.A) then
+                pos = pos - right
+            end
+            if UserInputService:IsKeyDown(Enum.KeyCode.Space) then
+                pos = pos + up
+            end
+            if UserInputService:IsKeyDown(Enum.KeyCode.LeftControl) then
+                pos = pos - up
+            end
+            
+            if pos.Magnitude > 0 then
+                if Settings.Movement.Fly.Smooth then
+                    flyBP.Position = flyBP.Position + (pos.Unit * Settings.Movement.Fly.Speed / 10)
+                else
+                    flyBP.Position = flyBP.Position + (pos.Unit * Settings.Movement.Fly.Speed)
+                end
+            end
+            
+            if Settings.Movement.Fly.NoClip then
+                for _, part in pairs(character:GetDescendants()) do
+                    if part:IsA("BasePart") then
+                        part.CanCollide = false
+                    end
+                end
+            end
+        else
+            if flyBP then
+                flyBP:Destroy()
+                flyBP = nil
+            end
+        end
+    end,
+
+    HandleInfiniteJump = function(input)
+        if Settings.Movement.InfiniteJump and input.KeyCode == Enum.KeyCode.Space then
+            local character = LocalPlayer.Character
+            local humanoid = character:FindFirstChild("Humanoid")
+            if humanoid then
+                humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+            end
+        end
+    end,
+
+    UpdateMovement = function()
+        MovementSystem.UpdateWalkSpeed()
+        MovementSystem.UpdateJumpPower()
+        MovementSystem.HandleFly()
+    end
+}
+
+-- Complete Auto Pass System Implementation
+local AutoPassSystem = {
+    LastPassTime = 0,
+    LastTarget = nil,
+    OriginalPosition = nil,
+
+    ExecutePass = function(target)
+        if not target or not Utility.IsAlive(target) then return end
+        
+        local currentTime = tick()
+        if currentTime - AutoPassSystem.LastPassTime < Settings.AutoPass.PassDelay then
+            return
+        end
+        
+        if Settings.AutoPass.AvoidRepeat and target == AutoPassSystem.LastTarget then
+            return
+        end
+        
+        local character = LocalPlayer.Character
+        local humanoidRootPart = character.HumanoidRootPart
+        local targetRoot = target.Character.HumanoidRootPart
+        
+        if Settings.AutoPass.ReturnToSpawn then
+            AutoPassSystem.OriginalPosition = humanoidRootPart.Position
+        end
+        
+        if Settings.AutoPass.SmoothTP then
+            local distance = (targetRoot.Position - humanoidRootPart.Position).Magnitude
+            local tweenInfo = TweenInfo.new(
+                distance / 100,
+                Enum.EasingStyle.Linear,
+                Enum.EasingDirection.Out
+            )
+            
+            local tween = TweenService:Create(humanoidRootPart, tweenInfo, {
+                CFrame = targetRoot.CFrame
+            })
+            tween:Play()
+            tween.Completed:Wait()
+        else
+            humanoidRootPart.CFrame = targetRoot.CFrame
+        end
+        
+        task.wait(Settings.AutoPass.PassDelay)
+        
+        -- Pass the bomb
+        local bomb = character:FindFirstChild("Bomb") or character:FindFirstChild("bomb")
+        if bomb then
+            bomb.Pass:FireServer(target)
+        end
+        
+        AutoPassSystem.LastPassTime = currentTime
+        AutoPassSystem.LastTarget = target
+        
+        if Settings.AutoPass.ReturnToSpawn and AutoPassSystem.OriginalPosition then
+            if Settings.AutoPass.SmoothTP then
+                local distance = (AutoPassSystem.OriginalPosition - humanoidRootPart.Position).Magnitude
+                local tweenInfo = TweenInfo.new(
+                    distance / 100,
+                    Enum.EasingStyle.Linear,
+                    Enum.EasingDirection.Out
+                )
+                
+                local tween = TweenService:Create(humanoidRootPart, tweenInfo, {
+                    CFrame = CFrame.new(AutoPassSystem.OriginalPosition)
+                })
+                tween:Play()
+                tween.Completed:Wait()
+            else
+                humanoidRootPart.CFrame = CFrame.new(AutoPassSystem.OriginalPosition)
+            end
+        end
+    end,
+
+    UpdateAutoPass = function()
+        if Settings.AutoPass.Enabled and Utility.HasBomb() then
+            local target = Utility.GetBestTarget()
+            if target then
+                AutoPassSystem.ExecutePass(target)
+            end
+        end
+    end
+}
+-- Complete GUI Implementation
+local Window = OrionLib:MakeWindow({
+    Name = "Pass The Bomb v1.2.17",
+    HidePremium = false,
+    SaveConfig = true,
+    ConfigFolder = "PTBConfigs",
+    IntroEnabled = true,
+    IntroText = "Pass The Bomb v1.2.17",
+    IntroIcon = "rbxassetid://7733955740"
+})
+
+-- Combat Tab
+local CombatTab = Window:MakeTab({
+    Name = "Combat",
+    Icon = "rbxassetid://7733774602"
+})
+
+local AimSection = CombatTab:AddSection({Name = "Aim Assist"})
+
+AimSection:AddToggle({
+    Name = "Enable Aim Assist",
+    Default = false,
+    Callback = function(Value)
+        Settings.Combat.AimAssist.Enabled = Value
+    end
+})
+
+AimSection:AddSlider({
+    Name = "Aim Strength",
+    Min = 0,
+    Max = 100,
+    Default = 50,
+    Color = Color3.fromRGB(255,255,255),
+    Increment = 1,
+    ValueName = "%",
+    Callback = function(Value)
+        Settings.Combat.AimAssist.Strength = Value/100
+    end    
+})
+
+AimSection:AddSlider({
+    Name = "FOV",
+    Min = 0,
+    Max = 800,
+    Default = 100,
+    Color = Color3.fromRGB(255,255,255),
+    Increment = 1,
+    ValueName = "px",
+    Callback = function(Value)
+        Settings.Combat.AimAssist.FOV = Value
+    end    
+})
+
+AimSection:AddSlider({
+    Name = "Smoothness",
+    Min = 0,
+    Max = 100,
+    Default = 50,
+    Color = Color3.fromRGB(255,255,255),
+    Increment = 1,
+    ValueName = "%",
+    Callback = function(Value)
+        Settings.Combat.AimAssist.Smoothness = Value/100
+    end    
+})
+
+AimSection:AddToggle({
+    Name = "Predict Movement",
+    Default = true,
+    Callback = function(Value)
+        Settings.Combat.AimAssist.PredictMovement = Value
+    end
+})
+
+AimSection:AddToggle({
+    Name = "Visibility Check",
+    Default = true,
+    Callback = function(Value)
+        Settings.Combat.AimAssist.VisibilityCheck = Value
+    end
+})
+
+AimSection:AddToggle({
+    Name = "Team Check",
+    Default = false,
+    Callback = function(Value)
+        Settings.Combat.AimAssist.TeamCheck = Value
+    end
+})
+
+local AutoSection = CombatTab:AddSection({Name = "Auto Features"})
+
+AutoSection:AddToggle({
+    Name = "Auto Dodge",
+    Default = false,
+    Callback = function(Value)
+        Settings.Combat.AutoDodge = Value
+    end
+})
+
+AutoSection:AddToggle({
+    Name = "Auto Block",
+    Default = false,
+    Callback = function(Value)
+        Settings.Combat.AutoBlock = Value
+    end
+})
+
+AutoSection:AddToggle({
+    Name = "Auto Heal",
+    Default = false,
+    Callback = function(Value)
+        Settings.Combat.AutoHeal = Value
+    end
+})
+
+AutoSection:AddSlider({
+    Name = "Heal Threshold",
+    Min = 0,
+    Max = 100,
+    Default = 50,
+    Color = Color3.fromRGB(255,255,255),
+    Increment = 1,
+    ValueName = "HP",
+    Callback = function(Value)
+        Settings.Combat.HealThreshold = Value
+    end    
+})
+
+-- Visual Tab
+local VisualTab = Window:MakeTab({
+    Name = "Visual",
+    Icon = "rbxassetid://7733774602"
+})
+
+local ESPSection = VisualTab:AddSection({Name = "ESP Settings"})
+
+ESPSection:AddToggle({
+    Name = "Enable ESP",
+    Default = false,
+    Callback = function(Value)
+        Settings.ESP.Enabled = Value
+    end
+})
+
+ESPSection:AddToggle({
+    Name = "Box ESP",
+    Default = false,
+    Callback = function(Value)
+        Settings.ESP.BoxESP = Value
+    end
+})
+
+ESPSection:AddToggle({
+    Name = "Skeleton ESP",
+    Default = false,
+    Callback = function(Value)
+        Settings.ESP.SkeletonESP = Value
+    end
+})
+
+ESPSection:AddToggle({
+    Name = "Tracer ESP",
+    Default = false,
+    Callback = function(Value)
+        Settings.ESP.TracerESP = Value
+    end
+})
+
+ESPSection:AddToggle({
+    Name = "Health Bar",
+    Default = false,
+    Callback = function(Value)
+        Settings.ESP.HealthBarESP = Value
+    end
+})
+
+ESPSection:AddToggle({
+    Name = "Show Names",
+    Default = false,
+    Callback = function(Value)
+        Settings.ESP.ShowNames = Value
+    end
+})
+
+ESPSection:AddToggle({
+    Name = "Show Distance",
+    Default = false,
+    Callback = function(Value)
+        Settings.ESP.ShowDistance = Value
+    end
+})
+
+ESPSection:AddToggle({
+    Name = "Rainbow ESP",
+    Default = false,
+    Callback = function(Value)
+        Settings.ESP.RainbowESP = Value
+    end
+})
+
+ESPSection:AddColorpicker({
+    Name = "ESP Color",
+    Default = Color3.fromRGB(255, 0, 0),
+    Callback = function(Value)
+        Settings.ESP.BoxColor = Value
+        Settings.ESP.TracerColor = Value
+        Settings.ESP.HeadDotColor = Value
+    end
+})
+-- Movement Tab
+local MovementTab = Window:MakeTab({
+    Name = "Movement",
+    Icon = "rbxassetid://7733774602"
+})
+
+local SpeedSection = MovementTab:AddSection({Name = "Speed Settings"})
+
+SpeedSection:AddToggle({
+    Name = "Speed Boost",
+    Default = false,
+    Callback = function(Value)
+        Settings.Movement.SpeedBoost = Value
+    end
+})
+
+SpeedSection:AddSlider({
+    Name = "Walk Speed",
+    Min = 16,
+    Max = 500,
+    Default = 16,
+    Color = Color3.fromRGB(255,255,255),
+    Increment = 1,
+    ValueName = "",
+    Callback = function(Value)
+        Settings.Movement.WalkSpeed = Value
+    end    
+})
+
+SpeedSection:AddSlider({
+    Name = "Speed Multiplier",
+    Min = 1,
+    Max = 10,
+    Default = 1,
+    Color = Color3.fromRGB(255,255,255),
+    Increment = 0.1,
+    ValueName = "x",
+    Callback = function(Value)
+        Settings.Movement.SpeedMultiplier = Value
+    end    
+})
+
+local FlySection = MovementTab:AddSection({Name = "Fly Settings"})
+
+FlySection:AddToggle({
+    Name = "Enable Fly",
+    Default = false,
+    Callback = function(Value)
+        Settings.Movement.Fly.Enabled = Value
+    end
+})
+
+FlySection:AddSlider({
+    Name = "Fly Speed",
+    Min = 1,
+    Max = 200,
+    Default = 50,
+    Color = Color3.fromRGB(255,255,255),
+    Increment = 1,
+    ValueName = "",
+    Callback = function(Value)
+        Settings.Movement.Fly.Speed = Value
+    end    
+})
+
+FlySection:AddToggle({
+    Name = "Noclip While Flying",
+    Default = true,
+    Callback = function(Value)
+        Settings.Movement.Fly.NoClip = Value
+    end
+})
+
+FlySection:AddToggle({
+    Name = "Smooth Fly",
+    Default = false,
+    Callback = function(Value)
+        Settings.Movement.Fly.Smooth = Value
+    end
+})
+
+local JumpSection = MovementTab:AddSection({Name = "Jump Settings"})
+
+JumpSection:AddToggle({
+    Name = "Infinite Jump",
+    Default = false,
+    Callback = function(Value)
+        Settings.Movement.InfiniteJump = Value
+    end
+})
+
+JumpSection:AddSlider({
+    Name = "Jump Power",
+    Min = 50,
+    Max = 500,
+    Default = 50,
+    Color = Color3.fromRGB(255,255,255),
+    Increment = 1,
+    ValueName = "",
+    Callback = function(Value)
+        Settings.Movement.JumpPower = Value
+    end    
+})
+
+-- Auto Pass Tab
+local AutoPassTab = Window:MakeTab({
+    Name = "Auto Pass",
+    Icon = "rbxassetid://7733774602"
+})
+
+local PassSection = AutoPassTab:AddSection({Name = "Auto Pass Settings"})
+
+PassSection:AddToggle({
+    Name = "Enable Auto Pass",
+    Default = false,
+    Callback = function(Value)
+        Settings.AutoPass.Enabled = Value
+    end
+})
+
+PassSection:AddToggle({
+    Name = "Smooth Teleport",
+    Default = true,
+    Callback = function(Value)
+        Settings.AutoPass.SmoothTP = Value
+    end
+})
+
+PassSection:AddToggle({
+    Name = "Return To Position",
+    Default = true,
+    Callback = function(Value)
+        Settings.AutoPass.ReturnToSpawn = Value
+    end
+})
+
+PassSection:AddToggle({
+    Name = "Smart Targeting",
+    Default = true,
+    Callback = function(Value)
+        Settings.AutoPass.SmartTarget = Value
+    end
+})
+
+PassSection:AddToggle({
+    Name = "Predict Movement",
+    Default = false,
+    Callback = function(Value)
+        Settings.AutoPass.PredictMovement = Value
+    end
+})
+
+PassSection:AddSlider({
+    Name = "Pass Delay",
+    Min = 0,
+    Max = 1,
+    Default = 0.05,
+    Color = Color3.fromRGB(255,255,255),
+    Increment = 0.01,
+    ValueName = "s",
+    Callback = function(Value)
+        Settings.AutoPass.PassDelay = Value
+    end    
+})
+
+PassSection:AddSlider({
+    Name = "Detection Range",
+    Min = 5,
+    Max = 100,
+    Default = 15,
+    Color = Color3.fromRGB(255,255,255),
+    Increment = 1,
+    ValueName = "studs",
+    Callback = function(Value)
+        Settings.AutoPass.DetectionRange = Value
+    end    
+})
+
+local TargetSection = AutoPassTab:AddSection({Name = "Target Settings"})
+
+TargetSection:AddDropdown({
+    Name = "Target Priority",
+    Default = "Distance",
+    Options = {"Distance", "Health", "Random", "Smart"},
+    Callback = function(Value)
+        Settings.AutoPass.TargetPriority = Value
+    end    
+})
+-- Settings Tab
+local SettingsTab = Window:MakeTab({
+    Name = "Settings",
+    Icon = "rbxassetid://7733774602"
+})
+
+local ConfigSection = SettingsTab:AddSection({Name = "Configuration"})
+
+ConfigSection:AddTextbox({
+    Name = "Config Name",
+    Default = "default",
+    TextDisappear = false,
+    Callback = function(Value)
+        Settings.Config.CurrentConfig = Value
+    end    
+})
+
+ConfigSection:AddButton({
+    Name = "Save Config",
+    Callback = function()
+        local configData = HttpService:JSONEncode(Settings)
+        writefile("PTBConfigs/" .. Settings.Config.CurrentConfig .. ".json", configData)
+        
+        OrionLib:MakeNotification({
+            Name = "Configuration",
+            Content = "Successfully saved config: " .. Settings.Config.CurrentConfig,
+            Image = "rbxassetid://4483345998",
+            Time = 3
+        })
+    end    
+})
+
+ConfigSection:AddButton({
+    Name = "Load Config",
+    Callback = function()
+        if isfile("PTBConfigs/" .. Settings.Config.CurrentConfig .. ".json") then
+            local configData = readfile("PTBConfigs/" .. Settings.Config.CurrentConfig .. ".json")
+            local success, result = pcall(function()
+                return HttpService:JSONDecode(configData)
+            end)
+            
+            if success then
+                for key, value in pairs(result) do
+                    Settings[key] = value
+                end
+                
+                OrionLib:MakeNotification({
+                    Name = "Configuration",
+                    Content = "Successfully loaded config: " .. Settings.Config.CurrentConfig,
+                    Image = "rbxassetid://4483345998",
+                    Time = 3
+                })
+            end
+        end
+    end    
+})
+
+ConfigSection:AddButton({
+    Name = "Reset All Settings",
+    Callback = function()
+        local defaultSettings = {
+            ESP = {
+                Enabled = false,
+                BoxESP = false,
+                SkeletonESP = false,
+                TracerESP = false,
+                HeadDotESP = false,
+                HealthBarESP = false,
+                ShowNames = false,
+                ShowDistance = false,
+                RainbowESP = false,
+                BoxColor = Color3.fromRGB(255,0,0),
+                TracerColor = Color3.fromRGB(255,0,0),
+                HeadDotColor = Color3.fromRGB(255,0,0)
+            },
+            Combat = {
+                AimAssist = {
+                    Enabled = false,
+                    Strength = 0.5,
+                    FOV = 100,
+                    Smoothness = 0.5,
+                    PredictMovement = true,
+                    VisibilityCheck = true,
+                    TeamCheck = false
+                },
+                AutoDodge = false,
+                AutoBlock = false,
+                AutoHeal = false,
+                HealThreshold = 50
+            },
+            Movement = {
+                SpeedBoost = false,
+                WalkSpeed = 16,
+                SpeedMultiplier = 1,
+                JumpPower = 50,
+                InfiniteJump = false,
+                Fly = {
+                    Enabled = false,
+                    Speed = 50,
+                    NoClip = true,
+                    Smooth = false
+                }
+            },
+            AutoPass = {
+                Enabled = false,
+                SmoothTP = true,
+                ReturnToSpawn = true,
+                PassDelay = 0.05,
+                DetectionRange = 15,
+                SmartTarget = true,
+                PredictMovement = false
+            }
+        }
+        
+        for key, value in pairs(defaultSettings) do
+            Settings[key] = value
+        end
+        
+        OrionLib:MakeNotification({
+            Name = "Settings Reset",
+            Content = "All settings have been reset to default values",
+            Image = "rbxassetid://4483345998",
+            Time = 3
+        })
+    end    
+})
+
+local UISection = SettingsTab:AddSection({Name = "UI Settings"})
+
+UISection:AddKeybind({
+    Name = "Toggle UI",
+    Default = Enum.KeyCode.RightControl,
+    Hold = false,
+    Callback = function()
+        OrionLib:ToggleUI()
+    end    
+})
+
+UISection:AddToggle({
+    Name = "Save Window Position",
+    Default = true,
+    Callback = function(Value)
+        Settings.UI.SavePosition = Value
+    end
+})
+
+-- Debug Tab
+local DebugTab = Window:MakeTab({
+    Name = "Debug",
+    Icon = "rbxassetid://7733774602"
+})
+
+local DebugSection = DebugTab:AddSection({Name = "Debug Options"})
+
+DebugSection:AddToggle({
+    Name = "Show FPS",
+    Default = false,
+    Callback = function(Value)
+        Settings.Debug.ShowFPS = Value
+    end
+})
+
+DebugSection:AddToggle({
+    Name = "Show Ping",
+    Default = false,
+    Callback = function(Value)
+        Settings.Debug.ShowPing = Value
+    end
+})
+
+DebugSection:AddToggle({
+    Name = "Log Actions",
+    Default = false,
+    Callback = function(Value)
+        Settings.Debug.LogActions = Value
+    end
+})
+-- Core Update Loop and Initialization
+local function InitializeScript()
+    -- Create necessary folders
+    if not isfolder("PTBConfigs") then
+        makefolder("PTBConfigs")
+    end
+    
+    -- Initialize all systems
+    InitializeESP()
+    
+    -- Main update loop
+    RunService.RenderStepped:Connect(function()
+        if Settings.ESP.Enabled then
+            UpdateESP()
+        end
+        
+        CombatSystem.UpdateCombat()
+        MovementSystem.UpdateMovement()
+        AutoPassSystem.UpdateAutoPass()
+        
+        -- Debug Updates
+        if Settings.Debug.ShowFPS or Settings.Debug.ShowPing then
+            local fps = math.round(1/RunService.RenderStepped:Wait())
+            local ping = math.round(Stats.Network.ServerStatsItem["Data Ping"]:GetValue())
+            
+            if Settings.Debug.ShowFPS then
+                DebugLabels.FPS.Text = "FPS: " .. fps
+            end
+            
+            if Settings.Debug.ShowPing then
+                DebugLabels.Ping.Text = "Ping: " .. ping .. "ms"
+            end
+        end
+    end)
+    
+    -- Input handling
+    UserInputService.InputBegan:Connect(function(input, gameProcessed)
+        if not gameProcessed then
+            MovementSystem.HandleInfiniteJump(input)
+        end
+    end)
+    
+    -- Player handling
+    Players.PlayerAdded:Connect(function(player)
+        if player ~= LocalPlayer then
+            task.wait(1)
+            InitializeESPForPlayer(player)
+        end
+    end)
+    
+    Players.PlayerRemoving:Connect(function(player)
+        if player ~= LocalPlayer then
+            CleanupESPForPlayer(player)
+        end
+    end)
+    
+    -- Anti-Cheat Bypass
+    local mt = getrawmetatable(game)
+    local oldIndex = mt.__index
+    setreadonly(mt, false)
+    
+    mt.__index = newcclosure(function(self, k)
+        if not checkcaller() then
+            if k == "WalkSpeed" or k == "JumpPower" then
+                return 16
+            end
+        end
+        return oldIndex(self, k)
+    end)
+    
+    -- Load default config
+    if isfile("PTBConfigs/default.json") then
+        local success, result = pcall(function()
+            return HttpService:JSONDecode(readfile("PTBConfigs/default.json"))
+        end)
+        
+        if success then
+            for key, value in pairs(result) do
+                Settings[key] = value
+            end
+        end
+    end
+    
+    -- Success Notification
+    OrionLib:MakeNotification({
+        Name = "Pass The Bomb v1.2.17",
+        Content = "Script loaded successfully!",
+        Image = "rbxassetid://7733955740",
+        Time = 5
+    })
+end
+
+-- Cleanup function
+local function Cleanup()
+    CleanupESP()
+    if flyBP then
+        flyBP:Destroy()
+    end
+    
+    -- Save current config
+    local configData = HttpService:JSONEncode(Settings)
+    writefile("PTBConfigs/default.json", configData)
+end
+
+-- Start everything
+InitializeScript()
+
+-- Cleanup on script end
+game:GetService("CoreGui").ChildRemoved:Connect(function(child)
+    if child.Name == "Orion" then
+        Cleanup()
+    end
+end)
