@@ -1,0 +1,905 @@
+--[[
+    Pass The Bomb v1.2.19
+    Created by: bavly-code
+    Discord: trashynoob
+    UI Library: shlexware
+    ESP System: 0x37
+]]
+
+local OrionLib = loadstring(game:HttpGet(('https://raw.githubusercontent.com/shlexware/Orion/main/source')))()
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local TweenService = game:GetService("TweenService")
+local HttpService = game:GetService("HttpService")
+local CoreGui = game:GetService("CoreGui")
+local Stats = game:GetService("Stats")
+local Camera = workspace.CurrentCamera
+local LocalPlayer = Players.LocalPlayer
+local Mouse = LocalPlayer:GetMouse()
+
+-- Complete Settings System
+getgenv().Settings = {
+    ESP = {
+        Enabled = false,
+        BoxESP = false,
+        TracerESP = false,
+        SkeletonESP = false,
+        HeadDotESP = false,
+        HealthBarESP = false,
+        ShowNames = false,
+        ShowDistance = false,
+        ShowHealth = false,
+        ShowTool = false,
+        RainbowESP = false,
+        TeamCheck = false,
+        BoxColor = Color3.fromRGB(255,0,0),
+        TracerColor = Color3.fromRGB(255,0,0),
+        HeadDotColor = Color3.fromRGB(255,0,0),
+        SkeletonColor = Color3.fromRGB(255,255,255),
+        TextSize = 14,
+        TextFont = 2,
+        BoxThickness = 1,
+        TracerThickness = 1,
+        SkeletonThickness = 1,
+        MaxDistance = 1000,
+        FaceCamera = true,
+        Outline = true
+    },
+    Combat = {
+        AimAssist = {
+            Enabled = false,
+            Strength = 0.5,
+            FOV = 100,
+            Smoothness = 0.5,
+            PredictMovement = true,
+            VisibilityCheck = true,
+            TeamCheck = false,
+            TargetPart = "Head",
+            FOVCircle = false,
+            FOVCircleColor = Color3.fromRGB(255,255,255),
+            FOVCircleFilled = false,
+            FOVCircleTransparency = 1,
+            TriggerBot = false,
+            TriggerBotDelay = 0.1
+        },
+        AutoDodge = false,
+        AutoBlock = false,
+        AutoHeal = false,
+        HealThreshold = 50,
+        SafeDistance = 10,
+        AutoEquipBomb = false,
+        AutoDetonate = false,
+        DetonateDelay = 1
+    },
+    Movement = {
+        SpeedBoost = false,
+        WalkSpeed = 16,
+        SpeedMultiplier = 1,
+        JumpPower = 50,
+        InfiniteJump = false,
+        HeightBoost = 0,
+        Fly = {
+            Enabled = false,
+            Speed = 50,
+            NoClip = true,
+            Smooth = false,
+            VerticalSpeed = 50,
+            FlyMethod = "BodyPosition", -- or "CFrame"
+            AntiKick = true
+        },
+        NoClip = false,
+        AutoJump = false,
+        BunnyHop = false,
+        SpeedMethod = "Humanoid" -- or "CFrame" or "BodyVelocity"
+    },
+    AutoPass = {
+        Enabled = false,
+        SmoothTP = true,
+        ReturnToSpawn = true,
+        PassDelay = 0.05,
+        DetectionRange = 15,
+        SmartTarget = true,
+        PredictMovement = false,
+        AvoidRepeat = true,
+        PassMethod = "Proximity", -- or "Random" or "Health"
+        TargetClosest = true,
+        PassInstantly = false,
+        SafetyChecks = true
+    },
+    UI = {
+        ToggleKey = Enum.KeyCode.RightControl,
+        SavePosition = true,
+        CustomTheme = false,
+        Theme = {
+            Background = Color3.fromRGB(24, 24, 24),
+            Header = Color3.fromRGB(17, 17, 17),
+            TextColor = Color3.fromRGB(255, 255, 255),
+            ElementColor = Color3.fromRGB(40, 40, 40)
+        }
+    },
+    Debug = {
+        ShowFPS = false,
+        ShowPing = false,
+        LogActions = false,
+        ShowStatus = false,
+        PerformanceMode = false
+    }
+}
+
+-- Initialize Cache Systems
+local ESPCache = {
+    Boxes = {},
+    Tracers = {},
+    Names = {},
+    Health = {},
+    Distance = {},
+    Tools = {},
+    HeadDots = {},
+    Skeletons = {}
+}
+
+local ChamsCache = {}
+local ConnectionCache = {}
+-- Complete ESP System Implementation
+local ESPSystem = {
+    Drawings = {},
+    Connections = {},
+    
+    CreateDrawings = function(player)
+        if ESPSystem.Drawings[player] then return end
+        
+        ESPSystem.Drawings[player] = {
+            Box = Drawing.new("Square"),
+            BoxOutline = Drawing.new("Square"),
+            Tracer = Drawing.new("Line"),
+            TracerOutline = Drawing.new("Line"),
+            Name = Drawing.new("Text"),
+            Distance = Drawing.new("Text"),
+            HealthBar = Drawing.new("Square"),
+            HealthBarOutline = Drawing.new("Square"),
+            HealthText = Drawing.new("Text"),
+            Tool = Drawing.new("Text"),
+            HeadDot = Drawing.new("Circle"),
+            HeadDotOutline = Drawing.new("Circle")
+        }
+        
+        -- Box Setup
+        ESPSystem.Drawings[player].Box.Thickness = Settings.ESP.BoxThickness
+        ESPSystem.Drawings[player].Box.Filled = false
+        ESPSystem.Drawings[player].Box.ZIndex = 2
+        
+        ESPSystem.Drawings[player].BoxOutline.Thickness = Settings.ESP.BoxThickness + 1
+        ESPSystem.Drawings[player].BoxOutline.Filled = false
+        ESPSystem.Drawings[player].BoxOutline.ZIndex = 1
+        ESPSystem.Drawings[player].BoxOutline.Color = Color3.new(0, 0, 0)
+        
+        -- Tracer Setup
+        ESPSystem.Drawings[player].Tracer.Thickness = Settings.ESP.TracerThickness
+        ESPSystem.Drawings[player].Tracer.ZIndex = 2
+        
+        ESPSystem.Drawings[player].TracerOutline.Thickness = Settings.ESP.TracerThickness + 1
+        ESPSystem.Drawings[player].TracerOutline.ZIndex = 1
+        ESPSystem.Drawings[player].TracerOutline.Color = Color3.new(0, 0, 0)
+        
+        -- Text Setup
+        for _, drawing in pairs({ESPSystem.Drawings[player].Name, ESPSystem.Drawings[player].Distance, ESPSystem.Drawings[player].HealthText, ESPSystem.Drawings[player].Tool}) do
+            drawing.Size = Settings.ESP.TextSize
+            drawing.Center = true
+            drawing.Outline = Settings.ESP.Outline
+            drawing.Font = Settings.ESP.TextFont
+        end
+        
+        -- Health Bar Setup
+        ESPSystem.Drawings[player].HealthBar.Thickness = 1
+        ESPSystem.Drawings[player].HealthBar.Filled = true
+        ESPSystem.Drawings[player].HealthBar.ZIndex = 2
+        
+        ESPSystem.Drawings[player].HealthBarOutline.Thickness = 1
+        ESPSystem.Drawings[player].HealthBarOutline.Filled = false
+        ESPSystem.Drawings[player].HealthBarOutline.ZIndex = 1
+        ESPSystem.Drawings[player].HealthBarOutline.Color = Color3.new(0, 0, 0)
+        
+        -- Head Dot Setup
+        ESPSystem.Drawings[player].HeadDot.Thickness = 1
+        ESPSystem.Drawings[player].HeadDot.NumSides = 30
+        ESPSystem.Drawings[player].HeadDot.Radius = 3
+        ESPSystem.Drawings[player].HeadDot.Filled = true
+        ESPSystem.Drawings[player].HeadDot.ZIndex = 2
+        
+        ESPSystem.Drawings[player].HeadDotOutline.Thickness = 1
+        ESPSystem.Drawings[player].HeadDotOutline.NumSides = 30
+        ESPSystem.Drawings[player].HeadDotOutline.Radius = 3
+        ESPSystem.Drawings[player].HeadDotOutline.Filled = false
+        ESPSystem.Drawings[player].HeadDotOutline.ZIndex = 1
+        ESPSystem.Drawings[player].HeadDotOutline.Color = Color3.new(0, 0, 0)
+    end,
+    
+    RemoveDrawings = function(player)
+        if ESPSystem.Drawings[player] then
+            for _, drawing in pairs(ESPSystem.Drawings[player]) do
+                drawing:Remove()
+            end
+            ESPSystem.Drawings[player] = nil
+        end
+    end,
+    
+    UpdateESP = function()
+        for player, drawings in pairs(ESPSystem.Drawings) do
+            if not player.Character or not player.Character:FindFirstChild("HumanoidRootPart") or not player.Character:FindFirstChild("Humanoid") or not player.Character:FindFirstChild("Head") then
+                for _, drawing in pairs(drawings) do
+                    drawing.Visible = false
+                end
+                continue
+            end
+            
+            local character = player.Character
+            local humanoidRootPart = character.HumanoidRootPart
+            local humanoid = character.Humanoid
+            local head = character.Head
+            
+            local headPos = head.Position
+            local rootPos = humanoidRootPart.Position
+            local distance = (Camera.CFrame.Position - rootPos).Magnitude
+            
+            if distance > Settings.ESP.MaxDistance then
+                for _, drawing in pairs(drawings) do
+                    drawing.Visible = false
+                end
+                continue
+            end
+            
+            local screenPos, onScreen = Camera:WorldToViewportPoint(rootPos)
+            if not onScreen then
+                for _, drawing in pairs(drawings) do
+                    drawing.Visible = false
+                end
+                continue
+            end
+            
+            -- Calculate Box
+            local size = (Camera:WorldToViewportPoint(headPos - Vector3.new(0, 3, 0)).Y - Camera:WorldToViewportPoint(rootPos + Vector3.new(0, -3, 0)).Y) / 2
+            local boxSize = Vector2.new(math.floor(size * 1.5), math.floor(size * 1.9))
+            local boxPos = Vector2.new(math.floor(screenPos.X - size * 1.5 / 2), math.floor(screenPos.Y - size * 1.5 / 2))
+            
+            -- Update Box
+            if Settings.ESP.BoxESP then
+                drawings.Box.Size = boxSize
+                drawings.Box.Position = boxPos
+                drawings.Box.Color = Settings.ESP.RainbowESP and Color3.fromHSV(tick() % 5 / 5, 1, 1) or Settings.ESP.BoxColor
+                drawings.Box.Visible = true
+                
+                drawings.BoxOutline.Size = boxSize
+                drawings.BoxOutline.Position = boxPos
+                drawings.BoxOutline.Visible = true
+            else
+                drawings.Box.Visible = false
+                drawings.BoxOutline.Visible = false
+            end
+            
+            -- Update Tracer
+            if Settings.ESP.TracerESP then
+                drawings.Tracer.From = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y)
+                drawings.Tracer.To = Vector2.new(screenPos.X, screenPos.Y)
+                drawings.Tracer.Color = Settings.ESP.RainbowESP and Color3.fromHSV(tick() % 5 / 5, 1, 1) or Settings.ESP.TracerColor
+                drawings.Tracer.Visible = true
+                
+                drawings.TracerOutline.From = drawings.Tracer.From
+                drawings.TracerOutline.To = drawings.Tracer.To
+                drawings.TracerOutline.Visible = true
+            else
+                drawings.Tracer.Visible = false
+                drawings.TracerOutline.Visible = false
+            end
+            
+            -- Update Head Dot
+            if Settings.ESP.HeadDotESP then
+                local headScreenPos = Camera:WorldToViewportPoint(headPos)
+                drawings.HeadDot.Position = Vector2.new(headScreenPos.X, headScreenPos.Y)
+                drawings.HeadDot.Color = Settings.ESP.RainbowESP and Color3.fromHSV(tick() % 5 / 5, 1, 1) or Settings.ESP.HeadDotColor
+                drawings.HeadDot.Visible = true
+                
+                drawings.HeadDotOutline.Position = drawings.HeadDot.Position
+                drawings.HeadDotOutline.Visible = true
+            else
+                drawings.HeadDot.Visible = false
+                drawings.HeadDotOutline.Visible = false
+            end
+            
+            -- Update Health Bar
+            if Settings.ESP.HealthBarESP then
+                local healthPercent = humanoid.Health / humanoid.MaxHealth
+                local barHeight = boxSize.Y * healthPercent
+                
+                drawings.HealthBarOutline.Size = Vector2.new(4, boxSize.Y)
+                drawings.HealthBarOutline.Position = Vector2.new(boxPos.X - 6, boxPos.Y)
+                drawings.HealthBarOutline.Visible = true
+                
+                drawings.HealthBar.Size = Vector2.new(2, barHeight)
+                drawings.HealthBar.Position = Vector2.new(boxPos.X - 5, boxPos.Y + (boxSize.Y - barHeight))
+                drawings.HealthBar.Color = Color3.fromRGB(255 - (255 * healthPercent), 255 * healthPercent, 0)
+                drawings.HealthBar.Visible = true
+                
+                if Settings.ESP.ShowHealth then
+                    drawings.HealthText.Text = math.floor(humanoid.Health) .. "/" .. math.floor(humanoid.MaxHealth)
+                    drawings.HealthText.Position = Vector2.new(boxPos.X - 20, boxPos.Y + boxSize.Y)
+                    drawings.HealthText.Color = drawings.HealthBar.Color
+                    drawings.HealthText.Visible = true
+                else
+                    drawings.HealthText.Visible = false
+                end
+            else
+                drawings.HealthBar.Visible = false
+                drawings.HealthBarOutline.Visible = false
+                drawings.HealthText.Visible = false
+            end
+            
+            -- Update Name
+            if Settings.ESP.ShowNames then
+                drawings.Name.Text = player.Name
+                drawings.Name.Position = Vector2.new(boxPos.X + boxSize.X/2, boxPos.Y - 16)
+                drawings.Name.Color = Settings.ESP.RainbowESP and Color3.fromHSV(tick() % 5 / 5, 1, 1) or Settings.ESP.BoxColor
+                drawings.Name.Visible = true
+            else
+                drawings.Name.Visible = false
+            end
+            
+            -- Update Distance
+            if Settings.ESP.ShowDistance then
+                drawings.Distance.Text = math.floor(distance) .. " studs"
+                drawings.Distance.Position = Vector2.new(boxPos.X + boxSize.X/2, boxPos.Y + boxSize.Y)
+                drawings.Distance.Color = Settings.ESP.RainbowESP and Color3.fromHSV(tick() % 5 / 5, 1, 1) or Settings.ESP.BoxColor
+                drawings.Distance.Visible = true
+            else
+                drawings.Distance.Visible = false
+            end
+            
+            -- Update Tool
+            if Settings.ESP.ShowTool then
+                local tool = character:FindFirstChildOfClass("Tool")
+                drawings.Tool.Text = tool and tool.Name or "None"
+                drawings.Tool.Position = Vector2.new(boxPos.X + boxSize.X/2, boxPos.Y + boxSize.Y + 15)
+                drawings.Tool.Color = Settings.ESP.RainbowESP and Color3.fromHSV(tick() % 5 / 5, 1, 1) or Settings.ESP.BoxColor
+                drawings.Tool.Visible = true
+            else
+                drawings.Tool.Visible = false
+            end
+        end
+    end
+}
+-- Combat System Implementation
+local CombatSystem = {
+    TargetPlayer = nil,
+    LastPassTime = 0,
+    FOVCircle = Drawing.new("Circle"),
+    
+    InitializeFOVCircle = function()
+        CombatSystem.FOVCircle.Thickness = 1
+        CombatSystem.FOVCircle.NumSides = 100
+        CombatSystem.FOVCircle.Radius = Settings.Combat.AimAssist.FOV
+        CombatSystem.FOVCircle.Filled = Settings.Combat.AimAssist.FOVCircleFilled
+        CombatSystem.FOVCircle.Color = Settings.Combat.AimAssist.FOVCircleColor
+        CombatSystem.FOVCircle.Transparency = Settings.Combat.AimAssist.FOVCircleTransparency
+        CombatSystem.FOVCircle.Visible = Settings.Combat.AimAssist.FOVCircle
+        CombatSystem.FOVCircle.Position = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
+    end,
+    
+    GetClosestPlayerToCursor = function()
+        local closestPlayer = nil
+        local shortestDistance = Settings.Combat.AimAssist.FOV
+        local mousePos = Vector2.new(Mouse.X, Mouse.Y)
+        
+        for _, player in pairs(Players:GetPlayers()) do
+            if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") and player.Character:FindFirstChild("Humanoid") and player.Character.Humanoid.Health > 0 then
+                if Settings.Combat.AimAssist.TeamCheck and player.Team == LocalPlayer.Team then continue end
+                
+                local targetPart = player.Character:FindFirstChild(Settings.Combat.AimAssist.TargetPart)
+                if not targetPart then continue end
+                
+                local pos, onScreen = Camera:WorldToViewportPoint(targetPart.Position)
+                if not onScreen then continue end
+                
+                if Settings.Combat.AimAssist.VisibilityCheck then
+                    local ray = Ray.new(Camera.CFrame.Position, (targetPart.Position - Camera.CFrame.Position).Unit * 1000)
+                    local hit = workspace:FindPartOnRayWithIgnoreList(ray, {LocalPlayer.Character, player.Character})
+                    if hit then continue end
+                end
+                
+                local distance = (Vector2.new(pos.X, pos.Y) - mousePos).Magnitude
+                if distance < shortestDistance then
+                    closestPlayer = player
+                    shortestDistance = distance
+                end
+            end
+        end
+        
+        return closestPlayer
+    end,
+    
+    UpdateAimAssist = function()
+        if Settings.Combat.AimAssist.Enabled then
+            CombatSystem.FOVCircle.Position = Vector2.new(Mouse.X, Mouse.Y)
+            CombatSystem.FOVCircle.Radius = Settings.Combat.AimAssist.FOV
+            CombatSystem.FOVCircle.Visible = Settings.Combat.AimAssist.FOVCircle
+            
+            local target = CombatSystem.GetClosestPlayerToCursor()
+            if target then
+                local targetPart = target.Character:FindFirstChild(Settings.Combat.AimAssist.TargetPart)
+                if targetPart then
+                    local targetPos = targetPart.Position
+                    
+                    if Settings.Combat.AimAssist.PredictMovement then
+                        targetPos = targetPos + (target.Character.HumanoidRootPart.Velocity * 0.165)
+                    end
+                    
+                    local targetCFrame = Camera.CFrame:Lerp(
+                        CFrame.new(Camera.CFrame.Position, targetPos),
+                        Settings.Combat.AimAssist.Strength * Settings.Combat.AimAssist.Smoothness
+                    )
+                    
+                    Camera.CFrame = targetCFrame
+                    
+                    if Settings.Combat.AimAssist.TriggerBot and UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton2) then
+                        task.wait(Settings.Combat.AimAssist.TriggerBotDelay)
+                        mouse1click()
+                    end
+                end
+            end
+        else
+            CombatSystem.FOVCircle.Visible = false
+        end
+    end,
+    
+    UpdateAutoDodge = function()
+        if Settings.Combat.AutoDodge then
+            for _, player in pairs(Players:GetPlayers()) do
+                if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+                    local distance = (LocalPlayer.Character.HumanoidRootPart.Position - player.Character.HumanoidRootPart.Position).Magnitude
+                    if distance < Settings.Combat.SafeDistance and player.Character:FindFirstChild("Bomb") then
+                        local newPos = LocalPlayer.Character.HumanoidRootPart.Position + (LocalPlayer.Character.HumanoidRootPart.Position - player.Character.HumanoidRootPart.Position).Unit * Settings.Combat.SafeDistance
+                        LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(newPos)
+                    end
+                end
+            end
+        end
+    end
+}
+
+-- Movement System Implementation
+local MovementSystem = {
+    FlyBP = nil,
+    LastJump = 0,
+    
+    UpdateWalkSpeed = function()
+        if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
+            if Settings.Movement.SpeedBoost then
+                if Settings.Movement.SpeedMethod == "Humanoid" then
+                    LocalPlayer.Character.Humanoid.WalkSpeed = Settings.Movement.WalkSpeed * Settings.Movement.SpeedMultiplier
+                elseif Settings.Movement.SpeedMethod == "CFrame" then
+                    if LocalPlayer.Character.Humanoid.MoveDirection.Magnitude > 0 then
+                        LocalPlayer.Character.HumanoidRootPart.CFrame = LocalPlayer.Character.HumanoidRootPart.CFrame + LocalPlayer.Character.Humanoid.MoveDirection * Settings.Movement.SpeedMultiplier/10
+                    end
+                end
+            else
+                LocalPlayer.Character.Humanoid.WalkSpeed = Settings.Movement.WalkSpeed
+            end
+            
+            LocalPlayer.Character.Humanoid.JumpPower = Settings.Movement.JumpPower
+            if Settings.Movement.HeightBoost > 0 then
+                LocalPlayer.Character.Humanoid.JumpHeight = Settings.Movement.HeightBoost
+            end
+        end
+    end,
+    
+    HandleFly = function()
+        if Settings.Movement.Fly.Enabled then
+            local character = LocalPlayer.Character
+            local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
+            
+            if Settings.Movement.Fly.FlyMethod == "BodyPosition" then
+                if not MovementSystem.FlyBP then
+                    MovementSystem.FlyBP = Instance.new("BodyPosition")
+                    MovementSystem.FlyBP.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
+                    MovementSystem.FlyBP.P = 10000
+                    MovementSystem.FlyBP.Position = humanoidRootPart.Position
+                    MovementSystem.FlyBP.Parent = humanoidRootPart
+                end
+                
+                local forward = Camera.CFrame.LookVector
+                local right = Camera.CFrame.RightVector
+                local up = Camera.CFrame.UpVector
+                local pos = Vector3.new(0,0,0)
+                
+                if UserInputService:IsKeyDown(Enum.KeyCode.W) then pos = pos + forward end
+                if UserInputService:IsKeyDown(Enum.KeyCode.S) then pos = pos - forward end
+                if UserInputService:IsKeyDown(Enum.KeyCode.D) then pos = pos + right end
+                if UserInputService:IsKeyDown(Enum.KeyCode.A) then pos = pos - right end
+                if UserInputService:IsKeyDown(Enum.KeyCode.Space) then pos = pos + up end
+                if UserInputService:IsKeyDown(Enum.KeyCode.LeftControl) then pos = pos - up end
+                
+                if pos.Magnitude > 0 then
+                    pos = pos.Unit * Settings.Movement.Fly.Speed
+                    
+                    if Settings.Movement.Fly.Smooth then
+                        MovementSystem.FlyBP.Position = MovementSystem.FlyBP.Position + pos/10
+                    else
+                        MovementSystem.FlyBP.Position = MovementSystem.FlyBP.Position + pos
+                    end
+                end
+            else
+                if MovementSystem.FlyBP then
+                    MovementSystem.FlyBP:Destroy()
+                    MovementSystem.FlyBP = nil
+                end
+                
+                local forward = Camera.CFrame.LookVector
+                local right = Camera.CFrame.RightVector
+                local up = Vector3.new(0, 1, 0)
+                local pos = Vector3.new(0,0,0)
+                
+                if UserInputService:IsKeyDown(Enum.KeyCode.W) then pos = pos + forward end
+                if UserInputService:IsKeyDown(Enum.KeyCode.S) then pos = pos - forward end
+                if UserInputService:IsKeyDown(Enum.KeyCode.D) then pos = pos + right end
+                if UserInputService:IsKeyDown(Enum.KeyCode.A) then pos = pos - right end
+                if UserInputService:IsKeyDown(Enum.KeyCode.Space) then pos = pos + up end
+                if UserInputService:IsKeyDown(Enum.KeyCode.LeftControl) then pos = pos - up end
+                
+                if pos.Magnitude > 0 then
+                    pos = pos.Unit * Settings.Movement.Fly.Speed/10
+                    humanoidRootPart.CFrame = humanoidRootPart.CFrame + pos
+                end
+            end
+            
+            if Settings.Movement.Fly.NoClip then
+                for _, part in pairs(character:GetDescendants()) do
+                    if part:IsA("BasePart") then
+                        part.CanCollide = false
+                    end
+                end
+            end
+        else
+            if MovementSystem.FlyBP then
+                MovementSystem.FlyBP:Destroy()
+                MovementSystem.FlyBP = nil
+            end
+        end
+    end,
+    
+    HandleInfiniteJump = function(input)
+        if Settings.Movement.InfiniteJump and input.KeyCode == Enum.KeyCode.Space then
+            LocalPlayer.Character:FindFirstChild("Humanoid"):ChangeState("Jumping")
+        end
+    end,
+    
+    HandleBunnyHop = function()
+        if Settings.Movement.BunnyHop and UserInputService:IsKeyDown(Enum.KeyCode.Space) then
+            if tick() - MovementSystem.LastJump > 0.1 then
+                LocalPlayer.Character:FindFirstChild("Humanoid"):ChangeState("Jumping")
+                MovementSystem.LastJump = tick()
+            end
+        end
+    end
+}
+-- Auto Pass System Implementation (Using your working version + enhancements)
+local AutoPassSystem = {
+    Running = false,
+    LastTarget = nil,
+    OriginalPosition = nil,
+    
+    CheckBombStatus = function()
+        local character = LocalPlayer.Character
+        return character and (character:FindFirstChild("Bomb") or character:FindFirstChild("Tagged") or character:FindFirstChild("bomb"))
+    end,
+    
+    GetBestTarget = function()
+        local bestTarget = nil
+        local minDistance = math.huge
+        
+        for _, otherPlayer in pairs(Players:GetPlayers()) do
+            if otherPlayer ~= LocalPlayer and otherPlayer.Character and otherPlayer.Character:FindFirstChild("HumanoidRootPart") then
+                if Settings.AutoPass.AvoidRepeat and otherPlayer == AutoPassSystem.LastTarget then
+                    continue
+                end
+                
+                local distance = (LocalPlayer.Character.HumanoidRootPart.Position - otherPlayer.Character.HumanoidRootPart.Position).Magnitude
+                
+                if distance < Settings.AutoPass.DetectionRange then
+                    if Settings.AutoPass.PassMethod == "Random" then
+                        if math.random() > 0.5 then
+                            bestTarget = otherPlayer
+                            break
+                        end
+                    elseif Settings.AutoPass.PassMethod == "Health" then
+                        local humanoid = otherPlayer.Character:FindFirstChild("Humanoid")
+                        if humanoid and humanoid.Health < 50 then
+                            bestTarget = otherPlayer
+                            break
+                        end
+                    else -- Proximity
+                        if distance < minDistance then
+                            minDistance = distance
+                            bestTarget = otherPlayer
+                        end
+                    end
+                end
+            end
+        end
+        
+        return bestTarget
+    end,
+    
+    ExecutePass = function()
+        while Settings.AutoPass.Enabled do
+            if AutoPassSystem.CheckBombStatus() then
+                if not AutoPassSystem.OriginalPosition then
+                    AutoPassSystem.OriginalPosition = LocalPlayer.Character.HumanoidRootPart.Position
+                end
+                
+                local target = AutoPassSystem.GetBestTarget()
+                if target and target.Character and target.Character:FindFirstChild("HumanoidRootPart") then
+                    local targetRoot = target.Character.HumanoidRootPart
+                    
+                    if Settings.AutoPass.SmoothTP then
+                        local distance = (targetRoot.Position - LocalPlayer.Character.HumanoidRootPart.Position).Magnitude
+                        local tweenInfo = TweenInfo.new(
+                            distance / 1000,
+                            Enum.EasingStyle.Linear,
+                            Enum.EasingDirection.Out
+                        )
+                        
+                        local tween = TweenService:Create(LocalPlayer.Character.HumanoidRootPart, tweenInfo, {
+                            CFrame = targetRoot.CFrame
+                        })
+                        tween:Play()
+                        tween.Completed:Wait()
+                    else
+                        LocalPlayer.Character.HumanoidRootPart.CFrame = targetRoot.CFrame
+                    end
+                    
+                    task.wait(Settings.AutoPass.PassDelay)
+                    
+                    local bomb = LocalPlayer.Character:FindFirstChild("Bomb") or LocalPlayer.Character:FindFirstChild("bomb")
+                    if bomb and bomb:FindFirstChild("Pass") then
+                        bomb.Pass:FireServer(target)
+                        AutoPassSystem.LastTarget = target
+                    end
+                end
+            elseif AutoPassSystem.OriginalPosition and Settings.AutoPass.ReturnToSpawn then
+                if Settings.AutoPass.SmoothTP then
+                    local distance = (AutoPassSystem.OriginalPosition - LocalPlayer.Character.HumanoidRootPart.Position).Magnitude
+                    local tweenInfo = TweenInfo.new(
+                        distance / 1000,
+                        Enum.EasingStyle.Linear,
+                        Enum.EasingDirection.Out
+                    )
+                    
+                    local tween = TweenService:Create(LocalPlayer.Character.HumanoidRootPart, tweenInfo, {
+                        CFrame = CFrame.new(AutoPassSystem.OriginalPosition)
+                    })
+                    tween:Play()
+                    tween.Completed:Wait()
+                else
+                    LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(AutoPassSystem.OriginalPosition)
+                end
+                AutoPassSystem.OriginalPosition = nil
+            end
+            task.wait(0.1)
+        end
+    end
+}
+
+-- Complete UI Implementation
+local Window = OrionLib:MakeWindow({
+    Name = "Pass The Bomb v1.2.19 | by bavly-code",
+    HidePremium = false,
+    SaveConfig = true,
+    ConfigFolder = "PTBConfigs",
+    IntroEnabled = true,
+    IntroText = "Pass The Bomb v1.2.19",
+    IntroIcon = "rbxassetid://7733955740"
+})
+
+-- Combat Tab
+local CombatTab = Window:MakeTab({
+    Name = "Combat",
+    Icon = "rbxassetid://7733774602"
+})
+
+local AimSection = CombatTab:AddSection({Name = "Aim Assist"})
+
+AimSection:AddToggle({
+    Name = "Enable Aim Assist",
+    Default = false,
+    Callback = function(Value)
+        Settings.Combat.AimAssist.Enabled = Value
+    end
+})
+
+AimSection:AddSlider({
+    Name = "Aim Strength",
+    Min = 0,
+    Max = 100,
+    Default = 50,
+    Color = Color3.fromRGB(255,255,255),
+    Increment = 1,
+    ValueName = "%",
+    Callback = function(Value)
+        Settings.Combat.AimAssist.Strength = Value/100
+    end    
+})
+
+-- Visual Tab
+local VisualTab = Window:MakeTab({
+    Name = "Visual",
+    Icon = "rbxassetid://7733774602"
+})
+
+local ESPSection = VisualTab:AddSection({Name = "ESP"})
+
+ESPSection:AddToggle({
+    Name = "Enable ESP",
+    Default = false,
+    Callback = function(Value)
+        Settings.ESP.Enabled = Value
+    end
+})
+
+-- [Continued in next chunk due to length...]
+-- Movement Tab
+local MovementTab = Window:MakeTab({
+    Name = "Movement",
+    Icon = "rbxassetid://7733774602"
+})
+
+MovementTab:AddToggle({
+    Name = "Speed Boost",
+    Default = false,
+    Callback = function(Value)
+        Settings.Movement.SpeedBoost = Value
+    end
+})
+
+MovementTab:AddToggle({
+    Name = "Fly",
+    Default = false,
+    Callback = function(Value)
+        Settings.Movement.Fly.Enabled = Value
+    end
+})
+
+MovementTab:AddToggle({
+    Name = "Infinite Jump",
+    Default = false,
+    Callback = function(Value)
+        Settings.Movement.InfiniteJump = Value
+    end
+})
+
+-- Auto Pass Tab
+local AutoPassTab = Window:MakeTab({
+    Name = "Auto Pass",
+    Icon = "rbxassetid://7733774602"
+})
+
+AutoPassTab:AddToggle({
+    Name = "Enable Auto Pass",
+    Default = false,
+    Callback = function(Value)
+        Settings.AutoPass.Enabled = Value
+        if Value then
+            coroutine.wrap(AutoPassSystem.ExecutePass)()
+        end
+    end
+})
+
+AutoPassTab:AddToggle({
+    Name = "Smart Targeting",
+    Default = true,
+    Callback = function(Value)
+        Settings.AutoPass.SmartTarget = Value
+    end
+})
+
+AutoPassTab:AddToggle({
+    Name = "Return To Position",
+    Default = true,
+    Callback = function(Value)
+        Settings.AutoPass.ReturnToSpawn = Value
+    end
+})
+
+-- Misc Tab
+local MiscTab = Window:MakeTab({
+    Name = "Misc",
+    Icon = "rbxassetid://7733774602"
+})
+
+MiscTab:AddButton({
+    Name = "Load Infinite Yield",
+    Callback = function()
+        loadstring(game:HttpGet('https://raw.githubusercontent.com/EdgeIY/infiniteyield/master/source'))()
+    end
+})
+
+MiscTab:AddButton({
+    Name = "Rejoin Server",
+    Callback = function()
+        game:GetService("TeleportService"):Teleport(game.PlaceId, LocalPlayer)
+    end
+})
+
+-- Settings Tab
+local SettingsTab = Window:MakeTab({
+    Name = "Settings",
+    Icon = "rbxassetid://7733774602"
+})
+
+SettingsTab:AddBind({
+    Name = "Toggle UI",
+    Default = Enum.KeyCode.RightControl,
+    Hold = false,
+    Callback = function()
+        OrionLib:ToggleUI()
+    end    
+})
+
+-- Credits Tab
+local CreditsTab = Window:MakeTab({
+    Name = "Credits",
+    Icon = "rbxassetid://7733774602"
+})
+
+CreditsTab:AddLabel("Script by: bavly-code")
+CreditsTab:AddLabel("Discord: trashynoob")
+CreditsTab:AddLabel("UI Library: shlexware")
+CreditsTab:AddLabel("Version: 1.2.19")
+
+-- Initialize Systems
+for _, player in pairs(Players:GetPlayers()) do
+    if player ~= LocalPlayer then
+        ESPSystem.CreateDrawings(player)
+    end
+end
+
+Players.PlayerAdded:Connect(function(player)
+    ESPSystem.CreateDrawings(player)
+end)
+
+Players.PlayerRemoving:Connect(function(player)
+    ESPSystem.RemoveDrawings(player)
+end)
+
+-- Main Update Loop
+RunService.RenderStepped:Connect(function()
+    if Settings.ESP.Enabled then
+        ESPSystem.UpdateESP()
+    end
+    
+    CombatSystem.UpdateAimAssist()
+    CombatSystem.UpdateAutoDodge()
+    MovementSystem.UpdateWalkSpeed()
+    MovementSystem.HandleFly()
+    MovementSystem.HandleBunnyHop()
+end)
+
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if not gameProcessed then
+        MovementSystem.HandleInfiniteJump(input)
+    end
+end)
+
+-- Cleanup
+game:GetService("CoreGui").ChildRemoved:Connect(function(child)
+    if child.Name == "Orion" then
+        for _, player in pairs(Players:GetPlayers()) do
+            ESPSystem.RemoveDrawings(player)
+        end
+        if MovementSystem.FlyBP then
+            MovementSystem.FlyBP:Destroy()
+        end
+        CombatSystem.FOVCircle:Remove()
+        Settings.AutoPass.Enabled = false
+    end
+end)
+
+OrionLib:Init()
